@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 executable radiation
   main-is:             Main.hs
-  ghc-options:         -O6
+  ghc-options:         -O3
   -- other-modules:       
   other-extensions:    TupleSections, OverloadedStrings
   build-depends:       base >=4.6 && <4.7, containers >=0.5 && <0.6, transformers >=0.3 && <0.4, process >=1.1 && <1.2, bytestring >=0.10 && <0.11, attoparsec

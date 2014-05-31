@@ -44,4 +44,4 @@ def radiate(filename, filetype, _):
             handle_line( line[:-1], stin ) ;
             line = proc.stdout.readline()
     else:
-        proc = subprocess.call([radiation_binary, filename, filetype, servername]) ;
+        proc = subprocess.Popen([radiation_binary, filename, filetype, servername]) ;
