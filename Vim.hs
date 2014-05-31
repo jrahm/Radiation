@@ -10,11 +10,12 @@ import System.Process
 import Data.String
 
 import System.IO
+
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
 import Data.ByteString (ByteString)
-import Data.Maybe (fromJust,isJust)
+import Data.Maybe (fromJust)
 import Control.Applicative
 import Data.Char
 
@@ -82,7 +83,11 @@ instance Monad VimM where
             return (dp1, x)
 
 instance MonadIO VimM where
-    liftIO a = VimM $ \_ vimdata -> a >>= return . (vimdata,)
+    liftIO a = VimM $ \_ vimdata -> (vimdata,) <$> a
+
+instance Applicative VimM where
+    pure = return
+    (<*>) = ap
 
 openLogFile :: FilePath -> LogLevel -> VimM ()
 openLogFile file ll = VimM $ \_ (VimData _ a b) -> do
@@ -96,8 +101,9 @@ setLogLevel ll = VimM $ \_ (VimData m a b) ->
 
 runVimM :: DataPipe -> VimM a -> IO a
 runVimM pipe (VimM func) = do
-    (VimData may _ _, ret) <- func pipe emptyData
+    (dat@(VimData may _ _), ret) <- func pipe emptyData
     forM_ may $ hFlush . fst
+    flushCommands_ pipe dat
     return ret
 
 
@@ -116,7 +122,7 @@ queryDefault :: String -> String -> VimM String
 queryDefault str def = fmap (fromJust . (<|>Just def)) (query str)
 
 log' :: LogLevel -> String -> VimM ()
-log' level str = VimM  $ \datapipe vimdata -> do
+log' level str = VimM  $ \datapipe vimdata ->
         postError datapipe level str >> return (vimdata,())
 
 logToHandle :: LogLevel -> String -> VimM ()
@@ -139,7 +145,7 @@ vlog = log
     
 post :: String -> VimM ()
 post str = VimM $ \datapipe vimdata ->
-    postCommand_ datapipe vimdata str >>= return . (,())
+    (,()) <$> postCommand_ datapipe vimdata str
 
 debug :: String -> VimM ()
 debug = log Debug
@@ -166,7 +172,7 @@ openSocketDataPipe input output = DataPipe {
     postCommand_ = \dp str -> hPutStrLn input ("c:" ++ str) >> hFlush input >> return dp,
     postError = \le str -> hPutStrLn input ("p:" ++ letter le ++ ":" ++ str),
     flushCommands_ = \_ -> return ()
-} where tos str = if length str > 0 then Just $ tail str else Nothing
+} where tos str = if not $ null str then Just $ tail str else Nothing
 
 runExpression' :: VimServerAddress -> String -> IO String
 runExpression' addr expr = 
@@ -187,11 +193,19 @@ sendCommand addr keys = sendKeysLn addr $ ":" `BS.append` keys
 openServerDataPipe :: VimServerAddress -> DataPipe
 openServerDataPipe addr =
     DataPipe {
-        queryVariable = \var -> fmap tos $ runExpression' addr (printf "exists('%s') ? %s : ''" var),
+        queryVariable = \var ->
+            fmap tos $ runExpression' addr $ printf "exists('%s') ? %s : ''" var var,
+
         evaluateExpression = runExpression' addr,
+
         postCommand_ = \dp str -> 
-            let (VimData log cache buf) = dp in
-            return (VimData log cache $ buf `BS.append` BSC.pack (":" ++ str ++ "<CR>")),
-        flushCommands_ = \dat -> sendKeys addr (commandBuffer dat),
+            let (VimData _log' cache buf) = dp in
+            return (VimData _log' cache $ buf `BS.append` BSC.pack (str++"\n")),
+
+        flushCommands_ = (withFile "/tmp/radiationx.vim" WriteMode . flip BS.hPutStr . (`BS.append`"redraw!") . commandBuffer)
+                            >&> const (sendKeys addr ":so /tmp/radiationx.vim<CR>"),
+
         postError = \le str -> sendCommand addr $ fromString $ "echoerr '" ++ show le ++ ": " ++ str
-    } where tos str = if length str > 0 then Just $ tail str else Nothing
+
+    } where tos str = if not $ null str then Just $ tail str else Nothing
+            (>&>) f g b = f b >> g b

@@ -8,6 +8,8 @@ import Control.Monad.IO.Class
 import Vim
 import Prelude hiding (log)
 
+{- Very basic test parser. Reads data from crack lib and highlights
+ - all the words from it -}
 parser :: Parser
 parser = Parser $ \_ -> do
     openLogFile "/tmp/radiation.log" Debug
