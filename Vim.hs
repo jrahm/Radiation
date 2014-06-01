@@ -23,6 +23,8 @@ import Data.Foldable (forM_)
 
 import Prelude hiding (log)
 import Text.Printf
+import My.Utils
+import Control.Exception
 
 
 type VimServerAddress = String
@@ -108,29 +110,40 @@ runVimM pipe (VimM func) = do
 
 
 query :: String -> VimM (Maybe String)
-query str = VimM  $ \dp vd@(VimData lh cache combuf) ->
+query str = VimM  $ \dp vd@(VimData lh cache combuf) -> do
+    logVimData Debug vd $ "looking up variable " ++ str
     case Map.lookup str cache of
-        Just x -> return (vd, Just x)
+        Just x -> logVimData Debug vd ("cached result found: " ++ x) $> (vd, Just x)
         Nothing -> do
             val' <- queryVariable dp str
 
-            maybe (return (vd, Nothing)) (\val -> 
-                let nm = Map.insert str val cache in
-                return (VimData lh nm combuf, Just val)) val'
+            maybe ( logVimData Debug vd "No result returned" $>
+                     (vd, Nothing) )
+
+                (\val -> let nm = Map.insert str val cache in
+                         logVimData Debug vd ("result " ++ val) $>
+                         (VimData lh nm combuf, Just val))
+                val'
 
 queryDefault :: String -> String -> VimM String
-queryDefault str def = fmap (fromJust . (<|>Just def)) (query str)
+queryDefault str def = fromJust . (<|>Just def) <$> query str
 
 log' :: LogLevel -> String -> VimM ()
 log' level str = VimM  $ \datapipe vimdata ->
         postError datapipe level str >> return (vimdata,())
 
+
 logToHandle :: LogLevel -> String -> VimM ()
 logToHandle level str = VimM $ \_ vimdata -> do
+    logVimData level vimdata str
+    return (vimdata, ())
+
+logVimData :: LogLevel -> VimData -> String -> IO ()
+logVimData level vimdata str =
     forM_ (logHandle vimdata) $ \(handle, ll) ->
         when ( level >= ll ) $ 
-            hPutStrLn handle $ "[" ++ show level ++ "] - " ++ str 
-    return (vimdata, ())
+            (hPutStrLn handle $ "[" ++ show level ++ "] - " ++ str)  >>
+            hFlush handle
     
 
 log :: LogLevel -> String -> VimM ()

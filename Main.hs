@@ -15,12 +15,14 @@ import Control.Applicative
 
 import qualified Radiation.Parsers.Test as Test
 import qualified Radiation.Parsers.CPP as CPP
+import qualified Radiation.Parsers.C as C
 
 import My.Utils
 
 availableParsers :: Map.Map String Parser
 availableParsers = Map.fromList
     [  ("test",Test.parser)
+     , ("c", C.parser)
      , ("cpp", CPP.parser) ]
 
 {- run a vim under the context of a data pipe. This data pipe
