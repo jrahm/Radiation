@@ -32,6 +32,7 @@ import Data.Maybe (fromJust)
 import Control.Applicative
 import Control.Arrow
 import Data.Char
+import Data.String.Utils
 
 import Data.Foldable (forM_)
 
@@ -292,7 +293,7 @@ openServerDataPipe :: VimServerAddress -> DataPipe
 openServerDataPipe addr =
     DataPipe {
         queryVariable = \var ->
-            fmap tos $ runExpression' addr $ printf "exists('%s') ? '.' . %s : ''" var var,
+            fmap (tos . strip) $ runExpression' addr $ printf "exists('%s') ? '.' . %s : ''" var var,
 
         evaluateExpression = runExpression' addr,
 
