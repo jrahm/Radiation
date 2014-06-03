@@ -12,7 +12,7 @@ module Vim(
     , fatal, post, openSocketDataPipe
     , openServerDataPipe, openLogFile
     , setLogLevel, VimSocketAddress
-    , LogLevel(..)
+    , LogLevel(..), DataPipe
 )
 where
     
@@ -292,7 +292,7 @@ openServerDataPipe :: VimServerAddress -> DataPipe
 openServerDataPipe addr =
     DataPipe {
         queryVariable = \var ->
-            fmap tos $ runExpression' addr $ printf "exists('%s') ? %s : ''" var var,
+            fmap tos $ runExpression' addr $ printf "exists('%s') ? '.' . %s : ''" var var,
 
         evaluateExpression = runExpression' addr,
 
