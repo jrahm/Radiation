@@ -1,63 +1,72 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Radiation.Parsers.C where
+module Radiation.Parsers.C(parser) where
 
 import qualified Radiation.Parsers as R
 
 import Control.Applicative
-import Control.Monad.IO.Class
+import Control.Monad
 
 import Vim
 import Prelude hiding (log)
 
-import Data.Char as C
 import qualified Data.Map as Map
 
 import Data.Attoparsec.ByteString.Char8 as BP
-import Data.Attoparsec.ByteString.Lazy as Lazy
 
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Char8 as BSC
-import Text.Printf
-import System.Process
-import System.IO
-
 import qualified Data.Set as Set
 
-import Text.Printf
 import My.Utils
 
+import Radiation.Parsers.Internal.CStyle
+import Radiation.Parsers.Internal.CommandParser
+import Radiation.Parsers.Internal.InternalIO
+import Radiation.Parsers.Internal.WithAttoparsec
+
+{- Keep radiation from highlighting already
+ - defined keywords -}
 blacklist :: Set.Set BS.ByteString
 blacklist = Set.fromList [
-                "int", "char", "unsigned", "signed",
-                "long", "short", "float", "double"
-            ]
+            "auto"    ,"else"  ,"long"    ,"switch",
+            "break"   ,"enum"  ,"register","typedef",
+            "case"    ,"extern","return"  ,"union",
+            "char"    ,"float" ,"short"   ,"unsigned",
+            "const"   ,"for"   ,"signed"  ,"void",
+            "continue","goto"  ,"sizeof"  ,"volatile",
+            "default" ,"if"    ,"static"  ,"while",
+            "do"      ,"int"   ,"struct"  ,"_Packed",
+            "double" ]
 
+typMap :: Map.Map String String
+typMap = Map.fromList [
+        ("struct","RadiationCStruct"),
+        ("union","RadiationCUnion"),
+        ("enum","RadiationCEnum")]
+                
+
+{- Parsec Monad for C files -}
 parseC :: Parser (Map.Map String (Set.Set BS.ByteString))
 parseC = let
-        identifier = skipSpace >> BP.takeWhile sat >>= ((>>) skipSpace . return)
-            where sat ch = C.isDigit ch || C.isAlpha ch || ch == '_'
-
-        body = skipSpace *> char '{' *> (body <|> BP.takeWhile (\c->c/='{' && c/='}')) <* char '}'
-
+        {- Parse a typedef and return pairs of highlights
+         - to keywords -}
         parseTypedef :: Parser [(String,BSC.ByteString)]
         parseTypedef = do
                 _ <- string "typedef"
 
                 (do 
-                    let typMap = Map.fromList [
-                            ("struct","RadiationCStruct"),
-                            ("union","RadiationCUnion"),
-                            ("enum","RadiationCEnum")]
-
-                    typ <- skipSpace *> (choice . map string) ["struct","enum","union"]
+                    {- parse the typedef of template:
+                     - typedef struct [name] { ... } [ident] -}
+                    typ <- skipSpace *> (choice . map string) (map BSC.pack $ Map.keys typMap)
                     id1' <- (option Nothing (Just <$> identifier))
                     let id1 = (,) <$> Map.lookup (BSC.unpack typ) typMap <*> id1'
 
                     (addJust id1 . return . ("RadiationCTypedef",)) <$> (skipSpace *> (option "" body) *> identifier)
-                    ) <|> ((return . ("RadiationCTypedef",) . last . BSC.words) <$> BP.takeWhile (/=';'))
+                    ) <|>
+                    {- Or as the original typedef ... [ident]; -}
+                    ((return . ("RadiationCTypedef",) . last . BSC.words) <$> BP.takeWhile (/=';'))
 
         parseFunction :: Parser [(String, BSC.ByteString)]
         parseFunction = do
@@ -83,26 +92,10 @@ parser = R.Parser $ \filename -> do
     openLogFile "/tmp/c_radiation.log" Debug
     vlog Info "Starting C Parser"
 
-    cc <- queryDefault "g:radiation_c_cc" "cc"
-    flags <- queryDefault "g:radiation_c_flags" ""
+    pipes <- sequence
+        [queryDefault "g:radiation_c_cc" "cc",
+         queryDefault "g:radiation_c_flags" "",
+         pure "-E", pure filename] >>= runCommand
 
-    let command = printf "%s %s -E %s" cc flags filename
-    vlog Info $ "Running command: " ++ command
-
-    (_, stout, sterr, _) <- liftIO $ runInteractiveCommand command
-    filestr <- liftIO (BSL.hGetContents stout)
-
-    {- Parse the cpp file after it has run through the preprocessor -}
-    case Lazy.parse parseC filestr of
-        
-        {- The parser failed and we report that -}
-        Lazy.Fail _ _ err -> do
-            liftIO (hGetContents sterr) >>= log Error
-            vlog Error $ "Unable to parse: " ++ err
-
-        {- The processor finished and worked,
-         - so we report that too -}
-        Lazy.Done _ val' -> do
-            let val = Map.map (Set.\\blacklist) val'
-            vlog Info $ "Match " ++ show val
-            Map.toList val <<? \(hi,v) -> R.highlight hi (map BSC.unpack (Set.toList v))
+    reportErrors pipes $
+        withParsingMap (Map.map (Set.\\blacklist) <$> parseC) <=< vGetHandleContents

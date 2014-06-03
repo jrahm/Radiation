@@ -17,6 +17,7 @@ import qualified Data.Map as Map
 import Data.ByteString (ByteString)
 import Data.Maybe (fromJust)
 import Control.Applicative
+import Control.Arrow
 import Data.Char
 
 import Data.Foldable (forM_)
@@ -24,7 +25,6 @@ import Data.Foldable (forM_)
 import Prelude hiding (log)
 import Text.Printf
 import My.Utils
-import Control.Exception
 
 
 type VimServerAddress = String
@@ -55,7 +55,9 @@ data VimData = VimData {
       logHandle :: Maybe (Handle, LogLevel)
     , cachedVariables :: Map.Map String String
     , commandBuffer :: ByteString
+    , vimLogLevel :: Maybe LogLevel
 }
+
 data DataPipe = DataPipe {
     {- Queries Vim for the value of a variable.
      - If that variable does not exist, the empty
@@ -91,26 +93,38 @@ instance Applicative VimM where
     pure = return
     (<*>) = ap
 
+getLogLevel :: VimM LogLevel
+getLogLevel = VimM $ \dp vd@(VimData lh cache combuf ll) ->
+    case ll of
+        Just _l -> return (vd, _l)
+        _ -> 
+         fmap (VimData lh cache combuf &&& fromJust) $
+            (<|>Just Error) <$>
+                (fmap readLogLevel <$> rVim (query "g:radiation_log_level") dp vd) 
+
+    where rVim :: VimM a -> DataPipe -> VimData -> IO a
+          rVim (VimM f) dp vd = snd <$> f dp vd
+
 openLogFile :: FilePath -> LogLevel -> VimM ()
-openLogFile file ll = VimM $ \_ (VimData _ a b) -> do
+openLogFile file ll = VimM $ \_ (VimData _ a b c) -> do
     fileh <- openFile file WriteMode
-    return (VimData (Just (fileh,ll)) a b, ())
+    return (VimData (Just (fileh,ll)) a b c, ())
 
 setLogLevel :: LogLevel -> VimM ()
-setLogLevel ll = VimM $ \_ (VimData m a b) ->
+setLogLevel ll = VimM $ \_ (VimData m a b c) ->
     let ret = m >>= \(h,_) -> return (h,ll) in
-    return (VimData ret a b, ())
+    return (VimData ret a b c, ())
 
 runVimM :: DataPipe -> VimM a -> IO a
 runVimM pipe (VimM func) = do
-    (dat@(VimData may _ _), ret) <- func pipe emptyData
+    (dat@(VimData may _ _ _), ret) <- func pipe emptyData
     forM_ may $ hFlush . fst
     flushCommands_ pipe dat
     return ret
 
 
 query :: String -> VimM (Maybe String)
-query str = VimM  $ \dp vd@(VimData lh cache combuf) -> do
+query str = VimM  $ \dp vd@(VimData lh cache combuf ll) -> do
     logVimData Debug vd $ "looking up variable " ++ str
     case Map.lookup str cache of
         Just x -> logVimData Debug vd ("cached result found: " ++ x) $> (vd, Just x)
@@ -122,7 +136,7 @@ query str = VimM  $ \dp vd@(VimData lh cache combuf) -> do
 
                 (\val -> let nm = Map.insert str val cache in
                          logVimData Debug vd ("result " ++ val) $>
-                         (VimData lh nm combuf, Just val))
+                         (VimData lh nm combuf ll, Just val))
                 val'
 
 queryDefault :: String -> String -> VimM String
@@ -142,15 +156,15 @@ logVimData :: LogLevel -> VimData -> String -> IO ()
 logVimData level vimdata str =
     forM_ (logHandle vimdata) $ \(handle, ll) ->
         when ( level >= ll ) $ 
-            (hPutStrLn handle $ "[" ++ show level ++ "] - " ++ str)  >>
+            hPutStrLn handle ("[" ++ show level ++ "] - " ++ str)  >>
             hFlush handle
     
 
 log :: LogLevel -> String -> VimM ()
 log level str = do
-    vimlevel <- queryDefault "g:radiation_log_level" "fatal"
+    vimlevel <- getLogLevel
     logToHandle level str
-    when (readLogLevel vimlevel <= level) $
+    when (vimlevel <= level) $
         log' level str
 
 vlog :: LogLevel -> String -> VimM ()
@@ -176,7 +190,7 @@ fatal :: String -> VimM ()
 fatal = log Fatal
 
 emptyData :: VimData
-emptyData = VimData Nothing Map.empty BS.empty
+emptyData = VimData Nothing Map.empty BS.empty Nothing
 
 openSocketDataPipe :: Handle -> Handle -> DataPipe
 openSocketDataPipe input output = DataPipe {
@@ -212,8 +226,8 @@ openServerDataPipe addr =
         evaluateExpression = runExpression' addr,
 
         postCommand_ = \dp str -> 
-            let (VimData _log' cache buf) = dp in
-            return (VimData _log' cache $ buf `BS.append` BSC.pack (str++"\n")),
+            let (VimData _log' cache buf ll) = dp in
+            return (VimData _log' cache (buf `BS.append` BSC.pack (str++"\n")) ll),
 
         flushCommands_ = (withFile "/tmp/radiationx.vim" WriteMode . flip BS.hPutStr . (`BS.append`"redraw!") . commandBuffer)
                             >&> const (sendKeys addr ":so /tmp/radiationx.vim<CR>"),

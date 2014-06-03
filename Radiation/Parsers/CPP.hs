@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Radiation.Parsers.CPP where
+module Radiation.Parsers.CPP(parser) where
 
 import qualified Radiation.Parsers as R
 
 import Control.Applicative
-import Control.Monad.IO.Class
+import Control.Monad
 
 import Vim
 import Prelude hiding (log)
@@ -15,19 +15,35 @@ import Data.Char as C
 import qualified Data.Map as Map
 
 import Data.Attoparsec.ByteString.Char8 as BP
-import Data.Attoparsec.ByteString.Lazy as Lazy
 
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Char8 as BSC
-import Text.Printf
-import System.Process
-import System.IO
 
 import qualified Data.Set as Set
 
 import My.Utils
 
+import Radiation.Parsers.Internal.CommandParser
+import Radiation.Parsers.Internal.InternalIO
+import Radiation.Parsers.Internal.WithAttoparsec
+
+
+blacklist :: Set.Set BS.ByteString
+blacklist = Set.fromList [
+            "auto"    ,"else"  ,"long"        ,"switch",
+            "break"   ,"enum"  ,"register"    ,"typedef",
+            "case"    ,"extern","return"      ,"union",
+            "char"    ,"float" ,"short"       ,"unsigned",
+            "const"   ,"for"   ,"signed"      ,"void",
+            "continue","goto"  ,"sizeof"      ,"volatile",
+            "default" ,"if"    ,"static"      ,"while",
+            "do"      ,"int"   ,"struct"      ,"_Packed",
+            "double"  ,"asm"   ,"dynamic_cast","namespace","reinterpret_cast",  "try",
+            "bool",        "explicit",      "new",        "static_cast",       "typeid",
+            "catch",       "false",         "operator",   "template",          "typename",
+            "class",       "friend",        "private",    "this",              "using",
+            "const_cast",  "inline",        "public",     "throw",             "virtual",
+            "delete",      "mutable",       "protected",  "true",              "wchar_t" ]
 {- Parser the C++ file. Look for classes, typedefs and namespaces -}
 parseCPP :: Parser (Map.Map String (Set.Set BS.ByteString))
 parseCPP = 
@@ -35,16 +51,15 @@ parseCPP =
         word = skipSpace >> BP.takeWhile sat >>= ((>>) skipSpace . return)
             where sat ch = C.isDigit ch || C.isAlpha ch || ch == '_'
 
+        {- Parse a class -}
         parseClass = string "class" *> fmap ("RadiationCppClass",) word
-
         parseTypedef = string "typedef" *> (((,)"RadiationCppTypedef" . last . BSC.words) <$> BP.takeWhile (/=';'))
-
         parseNamespace = string "namespace" *> fmap ("RadiationCppNamespace",) word
 
-        one = choice [ fmap return parseClass,
-                     fmap return parseTypedef,
-                     fmap return parseNamespace,
-                     anyChar >> return [] ] in
+        one = choice [ return <$> parseClass,
+                       return <$> parseTypedef,
+                       return <$> parseNamespace,
+                       anyChar $> [] ] in
 
    (fromList' . concat) <$> many one
 
@@ -57,28 +72,11 @@ parser = R.Parser $ \filename -> do
     openLogFile "/tmp/cpp_radiation.log" Debug
     log Info "Start cpp parser"
 
-    cc <- queryDefault "g:radiation_cc" "gcc"
-    flags <- queryDefault "g:radiation_c_flags" ""
-
-    {- The command to run -}
-    let command = printf "%s %s -E %s" cc flags filename
-    log Info $ "[RunningCommand]: " ++ command
-
     {- Get the utilities to parse the output -}
-    (_, stout, sterr, _) <- liftIO $ runInteractiveCommand command
-    filestr <- liftIO (BSL.hGetContents stout)
-
-    {- Parse the cpp file after it has run through the preprocessor -}
-    case Lazy.parse parseCPP filestr of
-        
-        {- The parser failed and we report that -}
-        Lazy.Fail _ _ err -> do
-            liftIO (hGetContents sterr) >>= log Error
-            log Error $ "Unable to parse: " ++ err
-
-        {- The processor finished and worked,
-         - so we report that too -}
-        Lazy.Done _ val -> do
-            log Info $ "Match " ++ show val
-            Map.toList val <<? \(hi,v) -> R.highlight hi (map BSC.unpack (Set.toList v))
-
+    pipes <- sequence
+        [queryDefault "g:radiation_cpp_cc" "g++",
+         queryDefault "g:radiation_cpp_flags" "",
+         pure "-E", pure filename] >>= runCommand
+    
+    reportErrors pipes $
+        withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP) <=< vGetHandleContents
