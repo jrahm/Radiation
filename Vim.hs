@@ -1,7 +1,20 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Vim where
+{- The module which contains the Vim monad. This monad
+ - is a state monad which handles the connection
+ - to the Vim client -}
+module Vim(
+      VimM(..)
+    , runVimM, query, log
+    , vlog, queryDefault
+    , debug, info, Vim.error, warn
+    , fatal, post, openSocketDataPipe
+    , openServerDataPipe, openLogFile
+    , setLogLevel, VimSocketAddress
+    , LogLevel(..)
+)
+where
     
 import Control.Monad.IO.Class
 import Control.Monad hiding (forM_)
@@ -30,8 +43,10 @@ import My.Utils
 type VimServerAddress = String
 type VimSocketAddress = String
 
+{- Log levels to help with debugging -}
 data LogLevel = Debug | Info | Warning | Error | Fatal deriving (Show,Enum,Ord,Eq)
 
+{- Read a log level from a string -}
 readLogLevel :: String -> LogLevel
 readLogLevel str | str == "0" || lstr == "debug" = Debug
                    | str == "1" || lstr == "info" = Info
@@ -41,6 +56,7 @@ readLogLevel str | str == "0" || lstr == "debug" = Debug
                    | otherwise = Fatal
                 where lstr = map toLower str
 
+{- Turn a log level into a letter -}
 letter :: LogLevel -> String
 letter err = case err of 
     Debug -> "d"
@@ -49,28 +65,55 @@ letter err = case err of
     Error -> "e"
     Fatal -> "f"
 
-
-
+{- This data type gets changed throughout the
+ - program as the state of the vim connection
+ - changes -}
 data VimData = VimData {
+      {- The handle to the log file and the associated
+       - log level with that handle -}
       logHandle :: Maybe (Handle, LogLevel)
-    , cachedVariables :: Map.Map String String
+
+      {- The cached variables which have been already
+       - retrieved from the Vim client -}
+    , _cachedVariables :: Map.Map String String
+
+      {- A buffer filled with the commands to run
+       - once the parser has completed -}
     , commandBuffer :: ByteString
-    , vimLogLevel :: Maybe LogLevel
+
+      {- the log level to display in Vim itself -}
+    , _vimLogLevel :: Maybe LogLevel
 }
 
+{- Abstraction of a connection to the server. Comes
+ - in 2 flavors: Asyncronous and Synchronous -}
 data DataPipe = DataPipe {
-    {- Queries Vim for the value of a variable.
-     - If that variable does not exist, the empty
-     - string is returned -}
-      queryVariable :: String -> IO (Maybe String)
+     {- Queries Vim for the value of a variable.
+      - If that variable does not exist, the empty
+      - string is returned -}
+     queryVariable :: String -> IO (Maybe String)
+
+      {- Evaluate an expression in vim and return the
+       - result -}
     , evaluateExpression :: String -> IO String
+
+     {- Post an error to Vim -}
     , postError :: LogLevel -> String -> IO ()
+
+      {- Post a command to Vim. Do not expect the
+       - result to occur right away -}
     , postCommand_ :: VimData -> String -> IO VimData
+
+      {- Execute all the commands -}
     , flushCommands_ :: VimData -> IO ()
 }
 
+{- The vim state monad. The central function is the ability to take a
+ - connection to the Vim client (DataPipe) and data and return
+ - a mutated version of said data with a variable -}
 data VimM a = VimM (DataPipe -> VimData -> IO (VimData, a))
 
+{- Overloading some instances of VimM -}
 instance Functor VimM where
     fmap f (VimM func) = VimM $ \dp vd -> do
         (vd1, a) <- func dp vd
@@ -86,6 +129,7 @@ instance Monad VimM where
             (dp1, x) <- func dp nd
             return (dp1, x)
 
+{- VimM is a special type of IO monad -}
 instance MonadIO VimM where
     liftIO a = VimM $ \_ vimdata -> (vimdata,) <$> a
 
@@ -93,6 +137,8 @@ instance Applicative VimM where
     pure = return
     (<*>) = ap
 
+{- Return the log level which is being used for
+ - the Vim client -}
 getLogLevel :: VimM LogLevel
 getLogLevel = VimM $ \dp vd@(VimData lh cache combuf ll) ->
     case ll of
@@ -105,6 +151,9 @@ getLogLevel = VimM $ \dp vd@(VimData lh cache combuf ll) ->
     where rVim :: VimM a -> DataPipe -> VimData -> IO a
           rVim (VimM f) dp vd = snd <$> f dp vd
 
+{- Open a log file with a certain log
+ - level. All log statements will be routed to
+ - this file -}
 openLogFile :: FilePath -> LogLevel -> VimM ()
 openLogFile file ll = VimM $ \_ (VimData _ a b c) -> do
     fileh <- openFile file WriteMode
@@ -115,6 +164,9 @@ setLogLevel ll = VimM $ \_ (VimData m a b c) ->
     let ret = m >>= \(h,_) -> return (h,ll) in
     return (VimData ret a b c, ())
 
+{- Run a Vim monad. Must specify the
+ - type of connection to use to the vim
+ - server. -}
 runVimM :: DataPipe -> VimM a -> IO a
 runVimM pipe (VimM func) = do
     (dat@(VimData may _ _ _), ret) <- func pipe emptyData
@@ -123,6 +175,10 @@ runVimM pipe (VimM func) = do
     return ret
 
 
+{- Look up the value of a variable in Vim.
+ - Will return Just if the variable exists,
+ - or Nothing otherwise. This will keep track
+ - of a cache to minimize calls to the vim server. -}
 query :: String -> VimM (Maybe String)
 query str = VimM  $ \dp vd@(VimData lh cache combuf ll) -> do
     logVimData Debug vd $ "looking up variable " ++ str
@@ -139,19 +195,25 @@ query str = VimM  $ \dp vd@(VimData lh cache combuf ll) -> do
                          (VimData lh nm combuf ll, Just val))
                 val'
 
+{- Like above, but specify a default value in case the variable
+ - does net extist -}
 queryDefault :: String -> String -> VimM String
 queryDefault str def = fromJust . (<|>Just def) <$> query str
 
+{- Log to vim directly -}
 log' :: LogLevel -> String -> VimM ()
 log' level str = VimM  $ \datapipe vimdata ->
         postError datapipe level str >> return (vimdata,())
 
 
+{- Log to the handle -}
 logToHandle :: LogLevel -> String -> VimM ()
 logToHandle level str = VimM $ \_ vimdata -> do
     logVimData level vimdata str
     return (vimdata, ())
 
+{- Log with VimData to log with returning value of
+ - IO and not VimM -}
 logVimData :: LogLevel -> VimData -> String -> IO ()
 logVimData level vimdata str =
     forM_ (logHandle vimdata) $ \(handle, ll) ->
@@ -160,6 +222,7 @@ logVimData level vimdata str =
             hFlush handle
     
 
+{- Log to both the log file and Vim -}
 log :: LogLevel -> String -> VimM ()
 log level str = do
     vimlevel <- getLogLevel
@@ -167,13 +230,16 @@ log level str = do
     when (vimlevel <= level) $
         log' level str
 
+{- Synonym for log -}
 vlog :: LogLevel -> String -> VimM ()
 vlog = log
-    
+
+{- Post a command to the Vim client. -}
 post :: String -> VimM ()
 post str = VimM $ \datapipe vimdata ->
     (,()) <$> postCommand_ datapipe vimdata str
 
+{- Synonyms for common log functions -}
 debug :: String -> VimM ()
 debug = log Debug
 
@@ -189,9 +255,12 @@ error = log Error
 fatal :: String -> VimM ()
 fatal = log Fatal
 
+{- No data yet -}
 emptyData :: VimData
 emptyData = VimData Nothing Map.empty BS.empty Nothing
 
+{- Create a new synchronous based connection over
+ - stdin and stdout -}
 openSocketDataPipe :: Handle -> Handle -> DataPipe
 openSocketDataPipe input output = DataPipe {
     queryVariable = \str -> hPutStrLn input ("q:" ++ str) >> hFlush input >> fmap tos (hGetLine output),
@@ -217,6 +286,8 @@ sendKeysLn addr keys = sendKeys addr $ keys `BS.append` "<CR>"
 sendCommand :: VimServerAddress -> ByteString -> IO ()
 sendCommand addr keys = sendKeysLn addr $ ":" `BS.append` keys
 
+{- Open connection to the Vim client via asynchronous
+ - callback -}
 openServerDataPipe :: VimServerAddress -> DataPipe
 openServerDataPipe addr =
     DataPipe {
