@@ -30,7 +30,7 @@ availableParsers = Map.fromList
  - program -}
 runWithDataPipe :: Handle -> String -> String -> DataPipe -> IO ()
 runWithDataPipe logh file typ pipe =
-    let logf = hPutStrLn logh . ("[INFO] - "++)
+    let logf = hPutStrLn logh . ("[Info] - "++)
         test = runParser file <$> Map.lookup typ availableParsers in do
 
     when (isNothing test)  $
