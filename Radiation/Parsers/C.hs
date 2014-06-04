@@ -18,6 +18,7 @@ import Data.Attoparsec.ByteString.Char8 as BP
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Set as Set
+import Data.Maybe (catMaybes)
 
 import My.Utils
 
@@ -75,10 +76,24 @@ parseC = let
             name <- identifier
             _ <- skipSpace *> char '('
             return [("RadiationCFunction",name)]
+
+        parseAnyType :: Parser [(String,BSC.ByteString)]
+        parseAnyType = do
+            {- Struct, union, enum etc. -}
+            typ <- choice (map (string . BSC.pack) $ Map.keys typMap)
+            ident <- identifier
+
+            let look = Map.lookup (BSC.unpack typ) typMap
+            let dat :: [Maybe (String,BSC.ByteString)]
+                dat = return ((,) <$> look <*> pure ident)
+
+            return $ catMaybes dat
+            
         in
         (fromList' . concat) <$> many (choice
             [ parseTypedef,
               parseFunction,
+              parseAnyType,
               anyChar $> []])
    where fromList' :: (Ord a, Ord b) => [(a,b)] -> Map.Map a (Set.Set b)
          fromList' = foldl (\mp (k,v) ->
