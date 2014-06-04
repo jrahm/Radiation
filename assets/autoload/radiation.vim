@@ -28,3 +28,4 @@ function! radiation#Radiate()
 endfunction
 
 call s:Initialize()
+command! Radiate call radiation#Radiate()

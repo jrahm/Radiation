@@ -39,3 +39,23 @@ typedefs and namespaces are included so they may be highlighted.
     to boost performance. Also, as a stand alone executable if vim is running under
     the `--servername` flag, it will operate asynchonously, leaving the user to
     continue to use Vim while it calculates the extra syntax highlighting.
+
+2. Radiation is not restricted.
+    * Since radiation is not tied to the Vim runtime and is implemented in Haskell,
+    there are no restrictions at the language level. THe binary may take full advantage
+    of multi threadding and may also be updated on the fly. No restart required.
+
+## Why not use Radiation
+    
+1. Radiation is now a separate binary from Vim and is implemented in a safe
+language, so segfaults are no longer an issue. However, stability and potential
+deadlock has been known to occur in some cases. Killing the process is sufficient
+to halt the deadlock. It is important to be sure of stability before adding
+Radiation to any auto commands.
+
+2. Radiation is not at the moment portable. Mac and BSD support may work well, though
+I have not had the ability to try. Windows support is distant but possible. Right now,
+Linux is the best bet.
+
+3. If you are running a restricted version of Vim. The plugin requires an unrestricted
+version of vim to run since it executes an external program.

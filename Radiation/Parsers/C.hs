@@ -69,6 +69,8 @@ parseC = let
                     {- Or as the original typedef ... [ident]; -}
                     ((return . ("RadiationCTypedef",) . last . BSC.words) <$> BP.takeWhile (/=';'))
 
+        {- Parse the names of functions in the 
+         - file -}
         parseFunction :: Parser [(String, BSC.ByteString)]
         parseFunction = do
             _ <- identifier
@@ -77,6 +79,7 @@ parseC = let
             _ <- skipSpace *> char '('
             return [("RadiationCFunction",name)]
 
+        {- Parse any type independent of a typedef -}
         parseAnyType :: Parser [(String,BSC.ByteString)]
         parseAnyType = do
             {- Struct, union, enum etc. -}
