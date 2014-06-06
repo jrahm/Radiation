@@ -66,6 +66,14 @@ letter err = case err of
     Error -> "e"
     Fatal -> "f"
 
+color :: LogLevel -> String
+color ll = case ll of
+    Debug -> "\ESC[1;34m"
+    Info -> "\ESC[1;37m"
+    Warning -> "\ESC[1;33m"
+    Error -> "\ESC[1;31m"
+    Fatal -> "\ESC[1;31m"
+
 {- This data type gets changed throughout the
  - program as the state of the vim connection
  - changes -}
@@ -219,7 +227,7 @@ logVimData :: LogLevel -> VimData -> String -> IO ()
 logVimData level vimdata str =
     forM_ (logHandle vimdata) $ \(handle, ll) ->
         when ( level >= ll ) $ 
-            hPutStrLn handle ("[" ++ show level ++ "] - " ++ str)  >>
+            hPutStrLn handle (color level ++ "[" ++ show level ++ "] - " ++ str)  >>
             hFlush handle
     
 

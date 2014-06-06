@@ -1,12 +1,11 @@
 #!/bin/bash
 
-cabal configure
-cabal build
+cabal install
 
-if [ ! $PREFIX ] ; then
-    PREFIX=/usr/
+prefix=~/.vim
+if [ -d $HOME/.vim/bundle ] ; then
+    # Install with Pathogen
+    prefix=$HOME/.vim/bundle
+    echo Pathogen install detected\; copy to: $prefix
 fi
-
-cp dist/build/radiation/radiation $PREFIX/bin/
-
-cp -rv assets/* ~/.vim/
+cp -rv assets/* $prefix

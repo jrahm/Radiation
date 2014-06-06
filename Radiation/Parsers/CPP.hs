@@ -52,9 +52,15 @@ parseCPP =
             where sat ch = C.isDigit ch || C.isAlpha ch || ch == '_'
 
         {- Parse a class -}
-        parseClass = string "class" *> fmap ("RadiationCppClass",) word
-        parseTypedef = string "typedef" *> (((,)"RadiationCppTypedef" . last . BSC.words) <$> BP.takeWhile (/=';'))
-        parseNamespace = string "namespace" *> fmap ("RadiationCppNamespace",) word
+        parseClass = string "class" *>
+                     fmap ("RadiationCppClass",) word
+
+        parseTypedef = string "typedef" *>
+                       (fun <$> BP.takeWhile (/=';'))
+                       where fun = ("RadiationCppTypedef",) . last . BSC.words
+
+        parseNamespace = string "namespace" *>
+                         fmap ("RadiationCppNamespace",) word
 
         one = choice [ return <$> parseClass,
                        return <$> parseTypedef,
@@ -73,10 +79,11 @@ parser = R.Parser $ \filename -> do
     log Info "Start cpp parser"
 
     {- Get the utilities to parse the output -}
-    pipes <- sequence
+    pipes <- runCommand =<< sequence
         [queryDefault "g:radiation_cpp_cc" "g++",
          queryDefault "g:radiation_cpp_flags" "",
-         pure "-E", pure filename] >>= runCommand
+         pure "-E", pure filename]
     
     reportErrors pipes $
-        withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP) <=< vGetHandleContents
+        withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP)
+            <=< vGetHandleContents

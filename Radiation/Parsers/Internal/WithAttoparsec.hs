@@ -31,5 +31,7 @@ withParsingMap :: Parser (Map.Map String (Set.Set BS.ByteString)) ->
                   BSL.ByteString -> VimM ()
 
 withParsingMap parserm= withParsing parserm def
-    where def val = Map.toList val <<? \(hi,v) -> R.highlight hi (map BSC.unpack (Set.toList v))
+    where def val = Map.toList val <<?
+            \(hi,v) -> 
+                R.highlight hi (map BSC.unpack (Set.toList v))
 

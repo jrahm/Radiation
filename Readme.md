@@ -20,6 +20,9 @@ Originally implemented in Ruby then C, after complete refactoring of the
 architecture, the current implementation is written in Haskell and is far more
 robust than ever before.
 
+## Screenshot
+![Screenshot 1](https://raw.github.com/jrahm/Radiation/master/snapshot.jpg)
+
 ## What is Radiation?
 
 Radiation is a plugin that enables context aware syntax highlighting for C++
@@ -59,3 +62,10 @@ Linux is the best bet.
 
 3. If you are running a restricted version of Vim. The plugin requires an unrestricted
 version of vim to run since it executes an external program.
+
+## How does it work
+
+1. To install, dowload this repository and run the install script. `./install.sh`
+2. Once installed, this plugin will allow you to run the command `:Radiate`. This
+will add additional synatax highlighting to C++ and C files.
+

@@ -64,8 +64,9 @@ parseC = let
                     id1' <- (option Nothing (Just <$> identifier))
                     let id1 = (,) <$> Map.lookup (BSC.unpack typ) typMap <*> id1'
 
-                    (addJust id1 . return . ("RadiationCTypedef",)) <$> (skipSpace *> (option "" body) *> identifier)
-                    ) <|>
+                    (addJust id1 . return . ("RadiationCTypedef",))
+                        <$> (skipSpace *> (option "" body) *> identifier)) <|>
+
                     {- Or as the original typedef ... [ident]; -}
                     ((return . ("RadiationCTypedef",) . last . BSC.words) <$> BP.takeWhile (/=';'))
 
