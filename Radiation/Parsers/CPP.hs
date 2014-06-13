@@ -23,6 +23,7 @@ import qualified Data.Set as Set
 
 import My.Utils
 
+import Radiation.Parsers.Internal.CStyle
 import Radiation.Parsers.Internal.CommandParser
 import Radiation.Parsers.Internal.InternalIO
 import Radiation.Parsers.Internal.WithAttoparsec
@@ -44,6 +45,13 @@ blacklist = Set.fromList [
             "class",       "friend",        "private",    "this",              "using",
             "const_cast",  "inline",        "public",     "throw",             "virtual",
             "delete",      "mutable",       "protected",  "true",              "wchar_t" ]
+
+typMap :: Map.Map String String
+typMap = Map.fromList [
+        ("struct","RadiationCppStruct"),
+        ("union","RadiationCppUnion"),
+        ("enum","RadiationCppEnum")]
+
 {- Parser the C++ file. Look for classes, typedefs and namespaces -}
 parseCPP :: Parser (Map.Map String (Set.Set BS.ByteString))
 parseCPP = 
@@ -55,15 +63,28 @@ parseCPP =
         parseClass = string "class" *>
                      fmap ("RadiationCppClass",) word
 
-        parseTypedef = string "typedef" *>
-                       (fun <$> BP.takeWhile (/=';'))
-                       where fun = ("RadiationCppTypedef",) . last . BSC.words
+        parseTypedef :: Parser [(String,BSC.ByteString)]
+        parseTypedef = do
+                _ <- string "typedef"
+
+                (do 
+                    {- parse the typedef of template:
+                     - typedef struct [name] { ... } [ident] -}
+                    typ <- skipSpace *> (choice . map string) (map BSC.pack $ Map.keys typMap)
+                    id1' <- (option Nothing (Just <$> identifier))
+                    let id1 = (,) <$> Map.lookup (BSC.unpack typ) typMap <*> id1'
+
+                    (addJust id1 . return . ("RadiationCTypedef",))
+                        <$> (skipSpace *> (option "" body) *> identifier)) <|>
+
+                    {- Or as the original typedef ... [ident]; -}
+                    ((return . ("RadiationCTypedef",) . last . BSC.words) <$> BP.takeWhile (/=';'))
 
         parseNamespace = string "namespace" *>
                          fmap ("RadiationCppNamespace",) word
 
         one = choice [ return <$> parseClass,
-                       return <$> parseTypedef,
+                       parseTypedef,
                        return <$> parseNamespace,
                        anyChar $> [] ] in
 
@@ -72,6 +93,8 @@ parseCPP =
    where fromList' :: (Ord a, Ord b) => [(a,b)] -> Map.Map a (Set.Set b)
          fromList' = foldl (\mp (k,v) ->
             Map.insertWith Set.union k (Set.singleton v) mp) Map.empty
+         addJust Nothing = id
+         addJust (Just x) = (x:)
 
 parser :: R.Parser
 parser = R.Parser $ \filename -> do
