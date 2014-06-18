@@ -1,6 +1,8 @@
 import vim
 import subprocess
 
+running_proc = None
+
 # Called when there is a line from
 # radiation to respond to
 def handle_line(line, out):
@@ -78,3 +80,16 @@ def radiate(filename, filetype, _):
         #
         # This call will not wait for the process to end.
         proc = subprocess.Popen([radiation_binary, filename, filetype, servername]) ;
+        # Used in case we need to kill the running
+        # process
+        global running_proc
+        running_proc = proc
+
+
+# Kill the running radiation program.
+def kill_running():
+    global running_proc ;
+    if running_proc != None:
+        # print("killing " + str(running_proc.pid))
+        running_proc.terminate() ;
+        running_proc = None

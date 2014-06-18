@@ -289,11 +289,11 @@ sendKeys :: VimServerAddress -> ByteString -> IO ()
 sendKeys addr keys =
     void $ runProcess "/usr/bin/vim" ["/usr/bin/vim", "--servername", addr, "--remote-send", '\x1b' : BSC.unpack keys] Nothing Nothing Nothing Nothing Nothing 
 
-sendKeysLn :: VimServerAddress -> ByteString -> IO ()
-sendKeysLn addr keys = sendKeys addr $ keys `BS.append` "<CR>"
-
-sendCommand :: VimServerAddress -> ByteString -> IO ()
-sendCommand addr keys = sendKeysLn addr $ ":" `BS.append` keys
+-- sendKeysLn :: VimServerAddress -> ByteString -> IO ()
+-- sendKeysLn addr keys = sendKeys addr $ keys `BS.append` "<CR>"
+-- 
+-- sendCommand :: VimServerAddress -> ByteString -> IO ()
+-- sendCommand addr keys = sendKeysLn addr $ ":" `BS.append` keys
 
 {- Open connection to the Vim client via asynchronous
  - callback -}
@@ -312,7 +312,7 @@ openServerDataPipe addr =
         flushCommands_ = (withFile "/tmp/radiationx.vim" WriteMode . flip BS.hPutStr . (`BS.append`"redraw!") . commandBuffer)
                             >&> const (sendKeys addr ":so /tmp/radiationx.vim<CR>"),
 
-        postError = \le str -> sendCommand addr $ fromString $ "echoerr '" ++ show le ++ ": " ++ str
+        postError = \_le _str -> return () -- sendCommand addr $ fromString $ "echoerr '" ++ show le ++ ": " ++ str
 
     } where tos str = if not $ null str then Just $ tail str else Nothing
             (>&>) f g b = f b >> g b

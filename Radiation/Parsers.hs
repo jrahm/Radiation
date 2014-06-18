@@ -10,7 +10,7 @@ import qualified Data.Char as C
 data Parser = Parser (String -> VimM ())
 
 runParser :: String -> Parser -> VimM () 
-runParser str (Parser func) = trace "Running parser" $ func str
+runParser str (Parser func) = func str
 
 highlight :: String -> [String] -> VimM ()
 highlight high word' =

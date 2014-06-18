@@ -8,4 +8,5 @@ if [ -d $HOME/.vim/bundle ] ; then
     prefix=$HOME/.vim/bundle
     echo Pathogen install detected\; copy to: $prefix
 fi
-cp -rv assets/* $prefix
+rm -rf $prefix/radiation
+cp -rv assets $prefix/radiation

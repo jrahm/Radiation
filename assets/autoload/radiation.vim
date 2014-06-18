@@ -18,7 +18,6 @@ function! s:Initialize()
 endfunction
 
 function! radiation#Radiate()
-
     " Call the python function
     " to radiate the file with the filetype
 	exec printf('python radiate( "%s", "%s", "%s" )', expand("%"), &filetype, "" )
@@ -27,5 +26,17 @@ function! radiation#Radiate()
 
 endfunction
 
+function! radiation#QuickRadiate()
+    if exists('v:servername') && v:servername != ""
+        call radiation#Radiate()
+    endif
+endfunction
+
+" Kill the currently running Radiation process.
+" This is useful for cases where 
+function! radiation#Kill()
+    python kill_running()
+    redraw!
+endfunction
+
 call s:Initialize()
-command! Radiate call radiation#Radiate()
