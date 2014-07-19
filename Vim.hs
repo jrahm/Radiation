@@ -309,8 +309,11 @@ openServerDataPipe addr =
             let (VimData _log' cache buf ll) = dp in
             return (VimData _log' cache (buf `BS.append` BSC.pack (str++"\n")) ll),
 
-        flushCommands_ = (withFile "/tmp/radiationx.vim" WriteMode . flip BS.hPutStr . (`BS.append`"redraw!") . commandBuffer)
-                            >&> const (sendKeys addr ":so /tmp/radiationx.vim<CR>"),
+        flushCommands_ = \dp ->
+            {- Write the commands to a file. This file will be sourced
+             - by the server after a timeout -}
+            withFile "/tmp/radiationx.vim" WriteMode $
+                flip BS.hPutStr (commandBuffer dp `BS.append`"redraw!"),
 
         postError = \_le _str -> return () -- sendCommand addr $ fromString $ "echoerr '" ++ show le ++ ": " ++ str
 

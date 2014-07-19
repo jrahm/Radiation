@@ -14,7 +14,7 @@ function! s:Initialize()
         " So we do not have to call this again
         let s:radiation_initialized = 1
     endif
-
+    
 endfunction
 
 function! radiation#Radiate()
@@ -37,6 +37,18 @@ endfunction
 function! radiation#Kill()
     python kill_running()
     redraw!
+endfunction
+
+function! radiation#TrySource()
+    if exists('v:servername') && v:servername != ""
+        echo "calling radiation TrySource"
+        if filereadable("/tmp/radiationx.vim")
+            " check to see if the file to source exists.
+            " source and delete
+            exec 'source /tmp/radiationx.vim'
+            call delete('/tmp/radiationx.vim')
+        endif
+    endif
 endfunction
 
 call s:Initialize()
