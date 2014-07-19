@@ -312,7 +312,7 @@ openServerDataPipe addr =
         flushCommands_ = \dp ->
             {- Write the commands to a file. This file will be sourced
              - by the server after a timeout -}
-            withFile "/tmp/radiationx.vim" WriteMode $
+            withFile ("/tmp/radiationx."++addr++".vim") WriteMode $
                 flip BS.hPutStr (commandBuffer dp `BS.append`"redraw!"),
 
         postError = \_le _str -> return () -- sendCommand addr $ fromString $ "echoerr '" ++ show le ++ ": " ++ str

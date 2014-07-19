@@ -41,12 +41,12 @@ endfunction
 
 function! radiation#TrySource()
     if exists('v:servername') && v:servername != ""
-        echo "calling radiation TrySource"
-        if filereadable("/tmp/radiationx.vim")
+        let filename = '/tmp/radiationx.'.v:servername.'.vim'
+        if filereadable(filename)
             " check to see if the file to source exists.
             " source and delete
-            exec 'source /tmp/radiationx.vim'
-            call delete('/tmp/radiationx.vim')
+            exec 'source '.filename
+            call delete(filename)
         endif
     endif
 endfunction
