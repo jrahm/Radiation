@@ -16,6 +16,7 @@ import Control.Applicative
 import qualified Radiation.Parsers.Test as Test
 import qualified Radiation.Parsers.CPP as CPP
 import qualified Radiation.Parsers.C as C
+import qualified Radiation.Parsers.Python as Python
 
 import My.Utils
 
@@ -23,6 +24,7 @@ availableParsers :: Map.Map String Parser
 availableParsers = Map.fromList
     [  ("test",Test.parser)
      , ("c", C.parser)
+     , ("python", Python.parser)
      , ("cpp", CPP.parser) ]
 
 {- run a vim under the context of a data pipe. This data pipe

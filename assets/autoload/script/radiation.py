@@ -23,6 +23,11 @@ def handle_line(line, out):
         else:
             out.write("." + ev + "\n") ;
 
+    if head == "d":
+        # The process is telling vim that it is okay
+        # to detach and give the user back control
+        return
+
     elif head == "e":
         # commands starting with an `e:' are telling
         # Vim to evaluate something.

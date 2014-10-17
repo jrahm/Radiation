@@ -6,8 +6,8 @@
  - to the Vim client -}
 module Vim(
       VimM(..)
-    , runVimM, query, log
-    , vlog, queryDefault
+    , runVimM, query, log, detach
+    , vlog, queryDefault, bracketV
     , debug, info, Vim.error, warn
     , fatal, post, openSocketDataPipe
     , openServerDataPipe, openLogFile
@@ -18,11 +18,13 @@ where
     
 import Control.Monad.IO.Class
 import Control.Monad hiding (forM_)
+import Control.Exception
 
 import System.Process
 import Data.String
 
 import System.IO
+import System.Environment
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
@@ -33,6 +35,7 @@ import Control.Applicative
 import Control.Arrow
 import Data.Char
 import Data.String.Utils
+import Data.Maybe
 
 import Data.Foldable (forM_)
 
@@ -115,6 +118,11 @@ data DataPipe = DataPipe {
 
       {- Execute all the commands -}
     , flushCommands_ :: VimData -> IO ()
+
+      {- Tell Vim when it may be able to detach. Once, detached,
+       - there is no way to access anything from Vim after
+       - than -}
+    , detach_ :: VimData -> IO ()
 }
 
 {- The vim state monad. The central function is the ability to take a
@@ -183,31 +191,42 @@ runVimM pipe (VimM func) = do
     flushCommands_ pipe dat
     return ret
 
+getEnvSafe :: String -> IO (Maybe String)
+getEnvSafe str = catch (Just <$> getEnv str) $ \e -> do
+                    _ <- return (e :: SomeException)
+                    return Nothing
 
 {- Look up the value of a variable in Vim.
  - Will return Just if the variable exists,
  - or Nothing otherwise. This will keep track
  - of a cache to minimize calls to the vim server. -}
 query :: String -> VimM (Maybe String)
-query str = VimM  $ \dp vd@(VimData lh cache combuf ll) -> do
-    logVimData Debug vd $ "looking up variable " ++ str
-    case Map.lookup str cache of
-        Just x -> logVimData Debug vd ("cached result found: " ++ x) $> (vd, Just x)
-        Nothing -> do
-            val' <- queryVariable dp str
+query str = VimM  $ \dp vd@(VimData lh cache combuf ll) -> case str of
+    ('$':env') -> 
+        logVimData Debug vd "Reading environment variable" >>
+        (vd,) <$> liftIO (getEnvSafe env')
+    _ -> do
+        logVimData Debug vd $ "looking up variable " ++ str
+        case Map.lookup str cache of
+            Just x -> logVimData Debug vd ("cached result found: " ++ x) $> (vd, Just x)
+            Nothing -> do
+                val' <- queryVariable dp str
+    
+                maybe ( logVimData Debug vd "No result returned" $>
+                        (vd, Nothing) )
+    
+                    (\val -> let nm = Map.insert str val cache in
+                            logVimData Debug vd ("result " ++ val) $>
+                            (VimData lh nm combuf ll, Just val))
+                    val'
 
-            maybe ( logVimData Debug vd "No result returned" $>
-                     (vd, Nothing) )
-
-                (\val -> let nm = Map.insert str val cache in
-                         logVimData Debug vd ("result " ++ val) $>
-                         (VimData lh nm combuf ll, Just val))
-                val'
+detach :: VimM ()
+detach = VimM $ \dp d -> (detach_ dp d) $> (d,())
 
 {- Like above, but specify a default value in case the variable
  - does net extist -}
 queryDefault :: String -> String -> VimM String
-queryDefault str def = fromJust . (<|>Just def) <$> query str
+queryDefault str def = fromMaybe def <$> query str
 
 {- Log to vim directly -}
 log' :: LogLevel -> String -> VimM ()
@@ -230,6 +249,9 @@ logVimData level vimdata str =
             hPutStrLn handle (color level ++ "[" ++ show level ++ "] - " ++ str)  >>
             hFlush handle
     
+
+bracketV :: VimM a -> VimM a
+bracketV f = f <* detach
 
 {- Log to both the log file and Vim -}
 log :: LogLevel -> String -> VimM ()
@@ -274,26 +296,27 @@ openSocketDataPipe :: Handle -> Handle -> DataPipe
 openSocketDataPipe input output = DataPipe {
     queryVariable = \str -> hPutStrLn input ("q:" ++ str) >> hFlush input >> fmap tos (hGetLine output),
     evaluateExpression = \str -> hPutStrLn input ("e:" ++ str) >> hFlush input >> hGetLine output,
-    postCommand_ = \dp str -> hPutStrLn input ("c:" ++ str) >> hFlush input >> return dp,
     postError = \le str -> hPutStrLn input ("p:" ++ letter le ++ ":" ++ str),
-    flushCommands_ = \_ -> return ()
+    
+    postCommand_ = \dp str -> 
+        let (VimData _log' cache buf ll) = dp in
+        return (VimData _log' cache (buf `BS.append` BSC.pack (str++"\n")) ll),
+
+    flushCommands_ = \dp ->
+        {- Write the commands to a file. This file will be sourced
+         - by the server after a timeout -}
+        withFile ("/tmp/radiationx.vim") WriteMode $
+            flip BS.hPutStr (commandBuffer dp `BS.append`"redraw!"),
+
+    detach_ = const $ hPutStrLn input "d:"
 } where tos str = if not $ null str then Just $ tail str else Nothing
+
 
 runExpression' :: VimServerAddress -> String -> IO String
 runExpression' addr expr = 
     (>>=) (runInteractiveProcess "/usr/bin/vim"
         ["/usr/bin/vim", "--servername", addr, "--remote-expr", expr] Nothing Nothing) $
             \(_,stout,_,_) -> hGetContents stout
-
-sendKeys :: VimServerAddress -> ByteString -> IO ()
-sendKeys addr keys =
-    void $ runProcess "/usr/bin/vim" ["/usr/bin/vim", "--servername", addr, "--remote-send", '\x1b' : BSC.unpack keys] Nothing Nothing Nothing Nothing Nothing 
-
--- sendKeysLn :: VimServerAddress -> ByteString -> IO ()
--- sendKeysLn addr keys = sendKeys addr $ keys `BS.append` "<CR>"
--- 
--- sendCommand :: VimServerAddress -> ByteString -> IO ()
--- sendCommand addr keys = sendKeysLn addr $ ":" `BS.append` keys
 
 {- Open connection to the Vim client via asynchronous
  - callback -}
@@ -315,7 +338,9 @@ openServerDataPipe addr =
             withFile ("/tmp/radiationx."++addr++".vim") WriteMode $
                 flip BS.hPutStr (commandBuffer dp `BS.append`"redraw!"),
 
-        postError = \_le _str -> return () -- sendCommand addr $ fromString $ "echoerr '" ++ show le ++ ": " ++ str
+        postError = \_le _str -> return (), -- sendCommand addr $ fromString $ "echoerr '" ++ show le ++ ": " ++ str
+
+        detach_ = const (return ())
 
     } where tos str = if not $ null str then Just $ tail str else Nothing
             (>&>) f g b = f b >> g b

@@ -111,10 +111,10 @@ parser = R.Parser $ \filename -> do
     openLogFile "/tmp/c_radiation.log" Debug
     vlog Info "Starting C Parser"
 
-    pipes <- sequence
-        [queryDefault "g:radiation_c_cc" "cc",
-         queryDefault "g:radiation_c_flags" "",
-         pure "-E", pure filename] >>= runCommand
+    pipes <- (bracketV.sequence)
+              [queryDefault "g:radiation_c_cc" "cc",
+                queryDefault "g:radiation_c_flags" "",
+                pure "-E", pure filename] >>= runCommand
 
     reportErrors pipes $
-        withParsingMap (Map.map (Set.\\blacklist) <$> parseC) <=< vGetHandleContents
+        withParsingMap (Map.map (Set.\\blacklist) <$> parseC) <=< vGetHandleContents;

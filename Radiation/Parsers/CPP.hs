@@ -102,7 +102,7 @@ parser = R.Parser $ \filename -> do
     log Info "Start cpp parser"
 
     {- Get the utilities to parse the output -}
-    pipes <- runCommand =<< sequence
+    pipes <- runCommand =<< (bracketV.sequence)
         [queryDefault "g:radiation_cpp_cc" "g++",
          queryDefault "g:radiation_cpp_flags" "",
          pure "-E", pure filename]

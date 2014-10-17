@@ -14,6 +14,7 @@ function! s:Initialize()
         " So we do not have to call this again
         let s:radiation_initialized = 1
     endif
+
     
 endfunction
 
@@ -42,13 +43,21 @@ endfunction
 function! radiation#TrySource()
     if exists('v:servername') && v:servername != ""
         let filename = '/tmp/radiationx.'.v:servername.'.vim'
-        if filereadable(filename)
-            " check to see if the file to source exists.
-            " source and delete
-            exec 'source '.filename
-            call delete(filename)
-        endif
+    else
+        " TODO change the name of this file
+        let filename = '/tmp/radiationx.vim'
     endif
+    if filereadable(filename)
+        " check to see if the file to source exists.
+        " source and delete
+        exec 'source '.filename
+        call delete(filename)
+    endif
+endfunction
+
+function! radiation#SourceAndRun()
+    call radiation#TrySource()
+    call radiation#Radiate()
 endfunction
 
 call s:Initialize()
