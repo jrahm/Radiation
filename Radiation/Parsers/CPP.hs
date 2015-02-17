@@ -46,7 +46,7 @@ blacklist = Set.fromList [
             "const_cast",  "inline",        "public",     "throw",             "virtual",
             "delete",      "mutable",       "protected",  "true",              "wchar_t" ]
 
-typMap :: Map.Map String String
+typMap :: Map.Map BS.ByteString String
 typMap = Map.fromList [
         ("struct","RadiationCppStruct"),
         ("union","RadiationCppUnion"),
@@ -60,8 +60,7 @@ parseCPP =
             where sat ch = C.isDigit ch || C.isAlpha ch || ch == '_'
 
         {- Parse a class -}
-        parseClass = string "class" *>
-                     fmap ("RadiationCppClass",) word
+        parseClass = choice $ map (\(k,v) -> string k *> fmap (v,) word) $ Map.toList typMap
 
         parseTypedef :: Parser [(String,BSC.ByteString)]
         parseTypedef = do
@@ -70,9 +69,9 @@ parseCPP =
                 (do 
                     {- parse the typedef of template:
                      - typedef struct [name] { ... } [ident] -}
-                    typ <- skipSpace *> (choice . map string) (map BSC.pack $ Map.keys typMap)
+                    typ <- skipSpace *> (choice . map string) (Map.keys typMap)
                     id1' <- (option Nothing (Just <$> identifier))
-                    let id1 = (,) <$> Map.lookup (BSC.unpack typ) typMap <*> id1'
+                    let id1 = (,) <$> Map.lookup typ typMap <*> id1'
 
                     (addJust id1 . return . ("RadiationCTypedef",))
                         <$> (skipSpace *> (option "" body) *> identifier)) <|>
