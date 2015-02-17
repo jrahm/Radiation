@@ -50,6 +50,7 @@ typMap :: Map.Map BS.ByteString String
 typMap = Map.fromList [
         ("struct","RadiationCppStruct"),
         ("union","RadiationCppUnion"),
+        ("class","RadiationCppClass"),
         ("enum","RadiationCppEnum")]
 
 {- Parser the C++ file. Look for classes, typedefs and namespaces -}
