@@ -18,6 +18,37 @@ function! s:Initialize()
     
 endfunction
 
+
+
+function radiation#RadiationAuto()
+
+augroup Radiation
+    autocmd!
+
+    " If we can do it async, then run
+    " in the backgrout automagically
+    autocmd BufEnter *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
+    autocmd BufLeave *.c,*.cpp,*.h,*.hpp call radiation#Kill()
+    autocmd CursorHold *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
+    autocmd InsertLeave *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
+    autocmd InsertEnter *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
+
+augroup END
+
+endfunction
+
+function radiation#RadiationNoAuto()
+
+augroup Radiation
+    autocmd!
+    autocmd BufEnter *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
+    autocmd CursorHold *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
+    autocmd InsertLeave *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
+    autocmd InsertEnter *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
+augroup END
+
+endfunction
+
 function! radiation#Radiate()
     " Call the python function
     " to radiate the file with the filetype
