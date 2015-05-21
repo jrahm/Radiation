@@ -22,6 +22,7 @@ import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Set as Set
 
 import My.Utils
+import Debug.Trace
 
 import Radiation.Parsers.Internal.CStyle
 import Radiation.Parsers.Internal.CommandParser
@@ -86,9 +87,13 @@ parseCPP =
         one = choice [ return <$> parseClass,
                        parseTypedef,
                        return <$> parseNamespace,
-                       anyChar $> [] ] in
+                       anyChar $> [] ] in do
 
-   (fromList' . concat) <$> many one
+    bs' <- removePattern attribute
+    trace ("BS: " ++ show bs') $
+        case parseOnly ((fromList' . concat) <$> many one) bs' of
+            Left err -> fail err
+            Right map -> return map
 
    where fromList' :: (Ord a, Ord b) => [(a,b)] -> Map.Map a (Set.Set b)
          fromList' = foldl (\mp (k,v) ->

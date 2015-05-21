@@ -88,7 +88,7 @@ parseC = let
             ident <- identifier
 
             let look = Map.lookup (BSC.unpack typ) typMap
-            let dat :: [Maybe (String,BSC.ByteString)]
+            let dat :: [Maybe (String, BSC.ByteString)]
                 dat = return ((,) <$> look <*> pure ident)
 
             return $ catMaybes dat

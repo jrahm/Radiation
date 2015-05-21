@@ -3,6 +3,7 @@ module Radiation.Parsers.Internal.CStyle where
 
 import Data.Attoparsec.ByteString.Char8 as BP
 import Data.Attoparsec.ByteString.Lazy as Lazy
+import qualified Data.Attoparsec.ByteString as BB
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
@@ -15,6 +16,18 @@ import Control.Monad
 
 import My.Utils
 
+import Debug.Trace
+
+attribute :: Parser BS.ByteString
+attribute = do
+    string "__attribute__" 
+    skipSpace
+    parens
+
+removePattern :: Parser BS.ByteString -> Parser BS.ByteString
+removePattern pattern  = BS.concat <$> many ((pattern >> return BS.empty) <|>
+                                             (BS.singleton <$> BB.anyWord8))
+    
 (+>) :: Parser BS.ByteString -> Parser BS.ByteString -> Parser BS.ByteString
 (+>) p1 p2 = BS.append <$> p1 <*> p2
 
