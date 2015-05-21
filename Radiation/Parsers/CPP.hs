@@ -98,7 +98,7 @@ parseCPP =
 
 parser :: R.Parser
 parser = R.Parser $ \filename -> do
-    openLogFile "/tmp/cpp_radiation.log" Debug
+    openLogFilePortable "cpp_radiation.log" Debug
     log Info "Start cpp parser"
 
     {- Get the utilities to parse the output -}

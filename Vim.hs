@@ -1,5 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP #-}
 
 {- The module which contains the Vim monad. This monad
  - is a state monad which handles the connection
@@ -11,6 +12,7 @@ module Vim(
     , debug, info, Vim.error, warn
     , fatal, post, openSocketDataPipe
     , openServerDataPipe, openLogFile
+    , openLogFilePortable
     , setLogLevel, VimSocketAddress
     , LogLevel(..), DataPipe
 )
@@ -25,6 +27,9 @@ import Data.String
 
 import System.IO
 import System.Environment
+
+
+import System.FilePath ((</>))
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
@@ -42,6 +47,8 @@ import Data.Foldable (forM_)
 import Prelude hiding (log)
 import Text.Printf
 import My.Utils
+
+import Control.Monad.Error.Class
 
 
 type VimServerAddress = String
@@ -168,13 +175,33 @@ getLogLevel = VimM $ \dp vd@(VimData lh cache combuf ll) ->
     where rVim :: VimM a -> DataPipe -> VimData -> IO a
           rVim (VimM f) dp vd = snd <$> f dp vd
 
+nullFile :: IO Handle
+nullFile =
+#ifdef mingw32_OS_HOST
+    openFile "NUL" WriteMode
+#else
+    openFile "/dev/null" WriteMode
+#endif
+
 {- Open a log file with a certain log
  - level. All log statements will be routed to
  - this file -}
 openLogFile :: FilePath -> LogLevel -> VimM ()
 openLogFile file ll = VimM $ \_ (VimData _ a b c) -> do
-    fileh <- openFile file WriteMode
+    fileh <- catchError (openFile file WriteMode) (const nullFile)
     return (VimData (Just (fileh,ll)) a b c, ())
+
+tempFolder :: FilePath
+tempFolder = 
+#ifdef mingw32_OS_HOST
+    "C:\\Windows\\Temp"
+#else
+    "/tmp"
+#endif
+
+openLogFilePortable :: FilePath -> LogLevel -> VimM ()
+openLogFilePortable file ll = 
+    openLogFile (tempFolder </> file) ll
 
 setLogLevel :: LogLevel -> VimM ()
 setLogLevel ll = VimM $ \_ (VimData m a b c) ->

@@ -12,9 +12,9 @@ import Prelude hiding (log)
  - all the words from it -}
 parser :: Parser
 parser = Parser $ \_ -> do
-    openLogFile "/tmp/radiation.log" Debug
+    openLogFilePortable "test_radiation.log" Debug
 
     log Info "Start test parser"
 
-    liftIO (lines <$> readFile "/usr/share/dict/cracklib-small") >>=
-        (mapM_ . highlight) "Userdef1" . return
+    highlight "Userdef1" =<<
+        liftIO (lines <$> readFile "/usr/share/dict/cracklib-small")
