@@ -22,7 +22,7 @@ attribute :: Parser BS.ByteString
 attribute = do
     string "__attribute__" 
     skipSpace
-    parens
+    balancedParens
 
 removePattern :: Parser BS.ByteString -> Parser BS.ByteString
 removePattern pattern  = BS.concat <$> many ((pattern >> return BS.empty) <|>
@@ -39,6 +39,22 @@ identifier = skipSpace *> BP.takeWhile sat <* skipSpace
 between :: Char -> Char -> Parser BS.ByteString
 between open close = skipSpace *> char open *> (between open close <|> BP.takeWhile sat) <* char close
     where sat ch = ch /= open && ch /= close
+
+balancedParens :: Parser BS.ByteString
+balancedParens =
+    let
+        looseBalanced :: BS.ByteString -> Int -> Parser BS.ByteString
+        looseBalanced cur 0 = return cur
+        looseBalanced cur n = do
+            ch <- BP.anyChar
+            let cur' = cur `BS.append` BSC.singleton ch
+            case ch of 
+                '(' -> looseBalanced cur' (n + 1)
+                ')' -> looseBalanced cur' (n - 1)
+                _ ->   looseBalanced cur' n
+        in
+
+    BP.char '(' >> looseBalanced (BSC.singleton '(') 1
 
 body :: Parser BS.ByteString
 body = between '{' '}'
