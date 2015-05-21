@@ -35,7 +35,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
 import Data.ByteString (ByteString)
-import Data.Maybe (fromJust)
 import Control.Applicative
 import Control.Arrow
 import Data.Char
@@ -200,8 +199,7 @@ tempFolder =
 #endif
 
 openLogFilePortable :: FilePath -> LogLevel -> VimM ()
-openLogFilePortable file ll = 
-    openLogFile (tempFolder </> file) ll
+openLogFilePortable file = openLogFile (tempFolder </> file)
 
 setLogLevel :: LogLevel -> VimM ()
 setLogLevel ll = VimM $ \_ (VimData m a b c) ->
@@ -248,7 +246,7 @@ query str = VimM  $ \dp vd@(VimData lh cache combuf ll) -> case str of
                     val'
 
 detach :: VimM ()
-detach = VimM $ \dp d -> (detach_ dp d) $> (d,())
+detach = VimM $ \dp d -> detach_ dp d $> (d,())
 
 {- Like above, but specify a default value in case the variable
  - does net extist -}
@@ -332,11 +330,14 @@ openSocketDataPipe input output = DataPipe {
     flushCommands_ = \dp ->
         {- Write the commands to a file. This file will be sourced
          - by the server after a timeout -}
-        withFile ("/tmp/radiationx.vim") WriteMode $
+        withFilePortable "radiationx.vim" WriteMode $
             flip BS.hPutStr (commandBuffer dp `BS.append`"redraw!"),
 
     detach_ = const $ hPutStrLn input "d:"
 } where tos str = if not $ null str then Just $ tail str else Nothing
+
+withFilePortable :: FilePath -> IOMode -> (Handle -> IO ()) -> IO ()
+withFilePortable path = withFile (tempFolder </> path)
 
 
 runExpression' :: VimServerAddress -> String -> IO String
