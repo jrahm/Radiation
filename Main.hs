@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Main where
 
 import Vim
@@ -15,6 +16,7 @@ import Control.Applicative
 
 import qualified Radiation.Parsers.Test as Test
 import qualified Radiation.Parsers.CPP as CPP
+
 import qualified Radiation.Parsers.C as C
 import qualified Radiation.Parsers.Python as Python
 
@@ -25,7 +27,8 @@ availableParsers = Map.fromList
     [  ("test",Test.parser)
      , ("c", C.parser)
      , ("python", Python.parser)
-     , ("cpp", CPP.parser) ]
+     , ("cpp", CPP.parser)
+     ]
 
 {- run a vim under the context of a data pipe. This data pipe
  - defines the way for the Vim monad to communicate with the host
@@ -42,8 +45,18 @@ runWithDataPipe logh file typ pipe =
     logf $ "Found parser for file type " ++ typ ++ ": Running parser."
     void $ runVimM pipe (fromJust test)
 
+withLogFile :: (Handle -> IO ()) -> IO ()
+withLogFile fn =
+#ifdef mingw32_HOST_OS
+    let filename = "C:\\Windows\\Temp\\radiation.log"
+#else
+    let filename = "/tmp/radiation.log"
+#endif
+        in
+        withFile filename WriteMode fn
+
 main :: IO ()
-main = withFile "/tmp/radiation.log" WriteMode $ \flog ->
+main = withLogFile $ \flog ->
        (>>=) getArgs $ \argv -> do
         let logf = hPutStrLn flog . ("[INFO] - "++)
 
