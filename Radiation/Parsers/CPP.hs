@@ -87,13 +87,10 @@ parseCPP =
         one = choice [ return <$> parseClass,
                        parseTypedef,
                        return <$> parseNamespace,
-                       anyChar $> [] ] in do
+                       anyChar $> [] ] in
 
-    bs' <- removePattern attribute
-    trace ("BS: " ++ BSC.unpack bs') $
-        case parseOnly ((fromList' . concat) <$> many one) bs' of
-            Left err -> fail err
-            Right map -> return map
+    subparse (removePattern attribute) $
+                (fromList' . concat) <$> many one
 
    where fromList' :: (Ord a, Ord b) => [(a,b)] -> Map.Map a (Set.Set b)
          fromList' = foldl (\mp (k,v) ->

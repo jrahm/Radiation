@@ -27,6 +27,13 @@ attribute = do
 removePattern :: Parser BS.ByteString -> Parser BS.ByteString
 removePattern pattern  = BS.concat <$> many ((pattern >> return BS.empty) <|>
                                              (BS.singleton <$> BB.anyWord8))
+
+subparse :: Parser BS.ByteString -> Parser a -> Parser a
+subparse bsParser myParser = do
+    bs' <- bsParser
+    case parseOnly myParser bs' of
+        Left err -> fail err
+        Right map -> return map
     
 (+>) :: Parser BS.ByteString -> Parser BS.ByteString -> Parser BS.ByteString
 (+>) p1 p2 = BS.append <$> p1 <*> p2
