@@ -90,10 +90,9 @@ parseCPP =
                        anyChar $> [] ] in do
 
     bs' <- removePattern attribute
-    trace ("BS: " ++ show bs') $
-        case parseOnly ((fromList' . concat) <$> many one) bs' of
-            Left err -> fail err
-            Right map -> return map
+    case parseOnly ((fromList' . concat) <$> many one) bs' of
+        Left err -> fail err
+        Right map -> return map
 
    where fromList' :: (Ord a, Ord b) => [(a,b)] -> Map.Map a (Set.Set b)
          fromList' = foldl (\mp (k,v) ->
