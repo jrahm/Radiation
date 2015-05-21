@@ -94,11 +94,13 @@ parseC = let
             return $ catMaybes dat
             
         in
-        (fromList' . concat) <$> many (choice
-            [ parseTypedef,
-              parseFunction,
-              parseAnyType,
-              anyChar $> []])
+        subparse (removePattern attribute) $
+            (fromList' . concat) <$> many (choice
+                [ parseTypedef,
+                  parseFunction,
+                  parseAnyType,
+                  anyChar $> []])
+
    where fromList' :: (Ord a, Ord b) => [(a,b)] -> Map.Map a (Set.Set b)
          fromList' = foldl (\mp (k,v) ->
             Map.insertWith Set.union k (Set.singleton v) mp) Map.empty
