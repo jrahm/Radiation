@@ -190,16 +190,18 @@ openLogFile file ll = VimM $ \_ (VimData _ a b c) -> do
     fileh <- catchError (openFile file WriteMode) (const nullFile)
     return (VimData (Just (fileh,ll)) a b c, ())
 
-tempFolder :: FilePath
+tempFolder :: IO FilePath
 tempFolder = 
 #ifdef mingw32_OS_HOST
-    "C:\\Windows\\Temp"
+    getEnv "TEMP"
 #else
-    "/tmp"
+    return "/tmp"
 #endif
 
 openLogFilePortable :: FilePath -> LogLevel -> VimM ()
-openLogFilePortable file = openLogFile (tempFolder </> file)
+openLogFilePortable file ll = do
+    tmpFolder <- liftIO tempFolder
+    openLogFile (tmpFolder </> file) ll
 
 setLogLevel :: LogLevel -> VimM ()
 setLogLevel ll = VimM $ \_ (VimData m a b c) ->
@@ -337,7 +339,9 @@ openSocketDataPipe input output = DataPipe {
 } where tos str = if not $ null str then Just $ tail str else Nothing
 
 withFilePortable :: FilePath -> IOMode -> (Handle -> IO ()) -> IO ()
-withFilePortable path = withFile (tempFolder </> path)
+withFilePortable path ioMode fn = do
+    tmpFolder <- tempFolder
+    withFile (tmpFolder </> path) ioMode fn
 
 
 runExpression' :: VimServerAddress -> String -> IO String
@@ -360,10 +364,11 @@ openServerDataPipe addr =
             let (VimData _log' cache buf ll) = dp in
             return (VimData _log' cache (buf `BS.append` BSC.pack (str++"\n")) ll),
 
-        flushCommands_ = \dp ->
+        flushCommands_ = \dp -> do
+            tmpFolder <- tempFolder
             {- Write the commands to a file. This file will be sourced
              - by the server after a timeout -}
-            withFile ("/tmp/radiationx."++addr++".vim") WriteMode $
+            withFile ((tmpFolder </> "radiationx.")++addr++".vim") WriteMode $
                 flip BS.hPutStr (commandBuffer dp `BS.append`"redraw!"),
 
         postError = \_le _str -> return (), -- sendCommand addr $ fromString $ "echoerr '" ++ show le ++ ": " ++ str
