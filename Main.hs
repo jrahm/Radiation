@@ -26,7 +26,6 @@ availableParsers :: Map.Map String Parser
 availableParsers = Map.fromList
     [  ("test",Test.parser)
      , ("c", C.parser)
-     , ("python", Python.parser)
      , ("cpp", CPP.parser)
      ]
 
