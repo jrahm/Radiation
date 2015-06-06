@@ -109,11 +109,11 @@ parseC = let
          addJust (Just x) = (x:)
 
 parser :: R.Parser
-parser = R.Parser $ \filename -> do
+parser = R.Parser (const ["g:radiation_c_cc", "g:radiation_c_flags"]) $ \filename -> do
     openLogFilePortable "c_radiation.log" Debug
     vlog Info "Starting C Parser"
 
-    pipes <- (bracketV.sequence) {- bracketV automatically detaches from vim -}
+    pipes <- sequence {- bracketV automatically detaches from vim -}
               [queryDefault "g:radiation_c_cc" "cc",
                 queryDefault "g:radiation_c_flags" "",
                 pure "-E", pure filename] >>= runCommand

@@ -6,11 +6,13 @@ import Debug.Trace
 import Control.Monad
 import qualified Data.Char as C
 
--- run the file provided
-data Parser = Parser (String -> VimM ())
+{- A parser has a couple of things. First is a list
+ - of the variables it requires to complete. Second is
+ - the function that actually radiates the file -}
+data Parser = Parser (String -> [String]) (String -> VimM ())
 
 runParser :: String -> Parser -> VimM () 
-runParser str (Parser func) = func str
+runParser str (Parser _ func) = func str
 
 highlight :: String -> [String] -> VimM ()
 highlight high word' =

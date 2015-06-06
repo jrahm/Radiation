@@ -1,25 +1,21 @@
 {-# LANGUAGE CPP #-}
 module Main where
 
-import Vim
-import System.Environment
+import Control.Applicative
+import Control.Arrow (second)
 import Control.Monad
-
+import Data.Maybe (isNothing,fromJust)
+import My.Utils
+import Radiation.Parsers
+import System.Environment
 import System.Exit
 import System.IO
+import Vim
 
 import qualified Data.Map as Map
-import Radiation.Parsers
-
-import Data.Maybe (isNothing,fromJust)
-import Control.Applicative
-
-import qualified Radiation.Parsers.Test as Test
-import qualified Radiation.Parsers.CPP as CPP
-
 import qualified Radiation.Parsers.C as C
-
-import My.Utils
+import qualified Radiation.Parsers.CPP as CPP
+import qualified Radiation.Parsers.Test as Test
 
 availableParsers :: Map.Map String Parser
 availableParsers = Map.fromList
@@ -28,20 +24,6 @@ availableParsers = Map.fromList
      , ("cpp", CPP.parser)
      ]
 
-{- run a vim under the context of a data pipe. This data pipe
- - defines the way for the Vim monad to communicate with the host
- - program -}
-runWithDataPipe :: Handle -> String -> String -> DataPipe -> IO ()
-runWithDataPipe logh file typ pipe =
-    let logf = hPutStrLn logh . ("[Info] - "++)
-        test = runParser file <$> Map.lookup typ availableParsers in do
-
-    when (isNothing test)  $
-        putStrLn ("No parser for filetype " ++ typ) >> 
-        exitWith (ExitFailure 117)
-
-    logf $ "Found parser for file type " ++ typ ++ ": Running parser."
-    void $ runVimM pipe (fromJust test)
 
 withLogFile :: (Handle -> IO ()) -> IO ()
 withLogFile fn =
@@ -68,26 +50,27 @@ main = withLogFile $ \flog ->
             logf "Not enough arguments specified" >>
             exitWith (ExitFailure 1)
 
+
         {-Get the filename and the type of the file -}
         let (file:typ:_) = argv
-    
-        runWithDataPipe flog file typ =<< case argv of
-            {- We need to figure out what type of connection to open to Vim. Is Vim running
-             - as a server, or not. If it is a server, then we may take advantage of the
-             - asynchonous nature and avoid from blocking the user. -}
+        case argv of
+            [_:_:"--requires"] ->
+                {- The client code is attempting to figure out what
+                 - this parser will need to complete its task -}
+                let parser = Map.lookup typ availableParsers in
 
-            (_:_:addr:_as) -> 
-                {- 3 arguments => server -}
-                logf "Vim server detected. Running asynchronously" $>
-                openServerDataPipe addr
+                case parser of
+                    Nothing -> putStrLn "no such parser" >> exitWith (ExitFailure 1)
+                    Just (Parser req _) -> mapM_ putStrLn $ req file
+            
+            (_:_:arguments) ->
+                let arguments' = map (break (==':')) arguments
+                    argmap = Map.fromList (map (second tail) arguments')
+                    parser = Map.lookup typ availableParsers
+                    in
 
-            (_:_:_as) ->
-                {- 2 arguments => sequential -}
-                logf "No Vim server detected. Running sequentially" $>
-                openSocketDataPipe stdout stdin
+                case parser of
+                    Nothing -> putStrLn "no such parser" >> exitWith (ExitFailure 1)
+                    Just (Parser _ fn) -> runVimM argmap file fn
 
-            _ ->
-                {- < 2 arguments => WTF I checked for this earlier! -}
-                logf "There was a nonsensical error." >>
-                Prelude.error "The impossible!"
-
+            _ -> putStrLn "Error parsing command line parameters"

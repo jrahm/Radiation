@@ -99,12 +99,12 @@ parseCPP =
          addJust (Just x) = (x:)
 
 parser :: R.Parser
-parser = R.Parser $ \filename -> do
+parser = R.Parser (const ["g:radiation_cpp_cc", "g:radiation_cpp_flags"]) $ \filename -> do
     openLogFilePortable "cpp_radiation.log" Debug
     log Info "Start cpp parser"
 
     {- Get the utilities to parse the output -}
-    pipes <- runCommand =<< (bracketV.sequence)
+    pipes <- runCommand =<< sequence
         [queryDefault "g:radiation_cpp_cc" "g++",
          queryDefault "g:radiation_cpp_flags" "",
          pure "-E", pure filename]
