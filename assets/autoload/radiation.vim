@@ -1,7 +1,11 @@
+
 let s:script_dir = expand('<sfile>:p:h')
 let s:radiation_initialized = 0
 let g:radiation_log_level = "error"
 
+" initializes the radiation script. This sets up variables
+" needed to run Radiation, as well as initializes the python
+" script.
 function! s:Initialize()
 
     if s:radiation_initialized == 0
@@ -19,10 +23,14 @@ function! s:Initialize()
 endfunction
 
 
-
+" This function sets up radiation to automatically run when
+" many different events happen. This should only really be used
+" if radiation is set to not block. This should not be a problem
+" with the new architecture of the code.
 function radiation#RadiationAuto()
 
 augroup Radiation
+    " clear everything out
     autocmd!
 
     " If we can do it async, then run
@@ -37,6 +45,9 @@ augroup END
 
 endfunction
 
+" The opposite of the above. Radiation will still try to source
+" the file if it can, but no new instances of radiation will be
+" spawned unless the user uses the Radiation command.
 function radiation#RadiationNoAuto()
 
 augroup Radiation
@@ -49,6 +60,8 @@ augroup END
 
 endfunction
 
+" Invoke Radiation! Calls into the python which will spawn the haskell
+" code.
 function! radiation#Radiate()
     " Call the python function
     " to radiate the file with the filetype

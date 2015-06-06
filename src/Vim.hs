@@ -12,7 +12,7 @@ module Vim(
     , openLogFile
     , openLogFilePortable
     , setLogLevel, tempFolder
-    , LogLevel(..)
+    , LogLevel(..), Variable
 )
 where
     
@@ -41,7 +41,8 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
 
-type VariableMap = Map.Map String String
+type Variable = String
+type VariableMap = Map.Map Variable String
 
 {- Log levels to help with debugging -}
 data LogLevel = Debug | Info | Warning | Error | Fatal deriving (Show,Enum,Ord,Eq)
