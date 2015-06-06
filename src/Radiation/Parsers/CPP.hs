@@ -53,7 +53,11 @@ parseCPP =
             where sat ch = isAlphaNum ch || ch == '_'
 
         {- Parse a class -}
-        parseClass = choice $ map (\(k,v) -> string k *> fmap (v,) word) $ Map.toList typMap
+        parseClass =
+            (string "class"  >> ("RadiationCppClass",)  <$> word) <|>
+            (string "struct" >> ("RadiationCppStruct",) <$> word) <|>
+            (string "union"  >> ("RadiationCppUnion",)  <$> word) <|>
+            (string "enum"   >> ("RadiationCppEnum",)   <$> word)
 
         parseTypedef :: Parser [(String,BSC.ByteString)]
         parseTypedef = do
@@ -75,10 +79,18 @@ parseCPP =
         parseNamespace = string "namespace" *>
                          fmap ("RadiationCppNamespace",) word
 
-        one = choice [ return <$> parseClass,
-                       parseTypedef,
-                       return <$> parseNamespace,
-                       anyChar $> [] ] in
+        one =
+              {- Try to parse a class -}
+              (return <$> parseClass) <|> 
+              {- Try to parse a typedef -}
+              parseTypedef <|>
+              {- Try to parse an namespace -}
+              (return <$> parseNamespace) <|>
+              {- take until the next space -}
+              (BP.takeWhile1 (not . isSpace) >> BP.takeWhile1 isSpace $> []) <|>
+              {- take any char otherwise -}
+              (anyChar $> [])
+        in
 
     subparse (removePattern attribute) $
                 (fromList' . concat) <$> many one
