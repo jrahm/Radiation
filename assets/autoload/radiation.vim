@@ -80,8 +80,6 @@ endfunction
 let g:radiation_running=0
 
 function! radiation#SourceAndRun()
-    call radiation#TrySource()
-
     if g:radiation_running == 0
         call radiation#Radiate()
     endif
