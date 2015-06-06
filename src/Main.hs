@@ -18,7 +18,6 @@ import qualified Radiation.Parsers.Test as Test
 import qualified Radiation.Parsers.CPP as CPP
 
 import qualified Radiation.Parsers.C as C
-import qualified Radiation.Parsers.Python as Python
 
 import My.Utils
 
