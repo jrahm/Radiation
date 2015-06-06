@@ -29,4 +29,4 @@ vGetHandleContents = liftIO . getHandleContents
 reportErrors :: (Handle,Handle) -> (Handle -> VimM ()) -> VimM ()
 reportErrors (stout,sterr) func = do
     func stout
-    mapM_ (vlog Error . BSC.unpack) =<< (BSC.lines <$> vGetHandleContents sterr)
+    mapM_ (vlog Error) =<< (BSC.lines <$> vGetHandleContents sterr)

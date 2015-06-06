@@ -1,11 +1,12 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE CPP #-} {- The module which contains the Vim monad. This monad
  - is a state monad which handles the connection
  - to the Vim client -}
 module Vim(
       VimM(..)
-    , runVimM, query, log
+    , runVimM, query, log, logs
     , vlog, queryDefault
     , debug, info, Vim.error, warn
     , fatal, post
@@ -24,12 +25,15 @@ import Control.Monad.Error.Class
 import Control.Monad.IO.Class
 import Data.ByteString (ByteString)
 import Data.Char
+
+import My.Utils
+import Data.Convertible (convert, Convertible(..))
+
 import Data.Foldable (forM_, asum)
 import Data.Hash.MD5
 import Data.Maybe
 import Data.String
 import Data.String.Utils
-import My.Utils
 import Prelude hiding (log)
 import System.Environment
 import System.FilePath ((</>))
@@ -66,13 +70,13 @@ letter err = case err of
     Error -> "e"
     Fatal -> "f"
 
-color :: LogLevel -> String
-color ll = case ll of
-    Debug -> "\ESC[1;34m"
+color :: LogLevel -> ByteString
+color ll = (case ll of
+    Debug -> "\ESC[1;34m["
     Info -> "\ESC[1;37m"
     Warning -> "\ESC[1;33m"
     Error -> "\ESC[1;31m"
-    Fatal -> "\ESC[1;31m"
+    Fatal -> "\ESC[1;31m") +>+ "[" +>+ BSC.pack (show ll) +>+ "] - "
 
 {- This data type gets changed throughout the
  - program as the state of the vim connection
@@ -203,7 +207,7 @@ query str = VimM  $ \varMap vd@(VimData lh cache combuf ll) -> case str of
         logVimData Debug vd "Reading environment variable" >>
         (vd,) <$> liftIO (getEnvSafe env')
     _ -> do
-        logVimData Debug vd $ "looking up variable " ++ str
+        logVimData Debug vd $ "looking up variable " +>+ BSC.pack str
         return (vd, Map.lookup str varMap)
 
 {- Like above, but specify a default value in case the variable
@@ -213,52 +217,58 @@ queryDefault str def = fromMaybe def <$> query str
 
 
 {- Log to the handle -}
-logToHandle :: LogLevel -> String -> VimM ()
+logToHandle :: LogLevel -> ByteString -> VimM ()
 logToHandle level str = VimM $ \_ vimdata -> do
     logVimData level vimdata str
     return (vimdata, ())
 
 {- Log with VimData to log with returning value of
  - IO and not VimM -}
-logVimData :: LogLevel -> VimData -> String -> IO ()
+logVimData :: LogLevel -> VimData -> ByteString -> IO ()
 logVimData level vimdata str =
     forM_ (logHandle vimdata) $ \(handle, ll) ->
         when ( level >= ll ) $ 
-            hPutStrLn handle (color level ++ "[" ++ show level ++ "] - " ++ str)  >>
+            BSC.hPutStrLn handle (color level +>+ str)  >>
             hFlush handle
     
 
 {- Log to both the log file and Vim -}
-log :: LogLevel -> String -> VimM ()
+log :: LogLevel -> ByteString -> VimM ()
 log level str = do
     vimlevel <- getLogLevel
     logToHandle level str
 
+logs :: LogLevel -> String -> VimM ()
+logs l = log l . BSC.pack
+
 {- Synonym for log -}
-vlog :: LogLevel -> String -> VimM ()
+vlog :: LogLevel -> ByteString -> VimM ()
 vlog = log
 
 {- Post a command to the Vim client. -}
-post :: String -> VimM ()
+post :: (Convertible a ByteString) => a -> VimM ()
 post str = VimM $ \_ (VimData lh cv commandBuffer ll) ->
-    let commandBuffer' = mconcat [commandBuffer, "\n", BSC.pack str] in
+    let commandBuffer' = mconcat [commandBuffer, "\n", convert str] in
     return (VimData lh cv commandBuffer' ll, ())
+
+postStr :: String -> VimM ()
+postStr =  post . Str
 
 {- Synonyms for common log functions -}
 debug :: String -> VimM ()
-debug = log Debug
+debug = log Debug . BSC.pack
 
 info :: String -> VimM ()
-info = log Info
+info = log Info . BSC.pack
 
 warn :: String -> VimM ()
-warn = log Warning
+warn = log Warning . BSC.pack
 
 error :: String -> VimM ()
-error = log Error
+error = log Error . BSC.pack
 
 fatal :: String -> VimM ()
-fatal = log Fatal
+fatal = log Fatal . BSC.pack
 
 {- No data yet -}
 emptyData :: VimData

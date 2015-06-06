@@ -1,10 +1,18 @@
-module Radiation.Parsers (runParser, highlight) where
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+module Radiation.Parsers (runParser, highlight, Parser(..)) where
 
-import Vim
-import Debug.Trace
+import Vim (Variable, VimM(..), vlog, post, LogLevel(..))
 
-import Control.Monad
-import qualified Data.Char as C
+import Control.Monad (unless)
+import Data.Char (isAlphaNum)
+
+import My.Utils ((+>+))
+import Data.ByteString as BS (ByteString)
+import Data.ByteString.Char8 as BSC (all)
+
+import Data.Convertible (Convertible, convert)
+import Data.List (intersperse)
 
 {- A parser has a couple of things. First is a list
  - of the variables it requires to complete. Second is
@@ -23,11 +31,14 @@ data Parser = Parser {
 runParser :: FilePath -> Parser -> VimM () 
 runParser str (Parser _ func) = func str
 
-highlight :: String -> [String] -> VimM ()
+highlight :: (Convertible a ByteString, Convertible b ByteString) => a -> [b] -> VimM ()
 highlight high word' =
-    let word = filter (not . allSpace) word' in
-    unless (null word) $ do
-        vlog Debug $ "[RunningCommand]: " ++ "syn keyword " ++ high ++ " "  ++ unwords word
-        post ("syn keyword " ++ high ++ " "  ++ unwords word)
-    where
-        allSpace = all C.isSpace
+    let highlight' highlighting words = 
+            let word = filter (BSC.all isAlphaNum) words
+                wordbs = mconcat $ intersperse " "  word
+                in
+            unless (null word) $ do
+                let command = "syn keyword" +>+ highlighting +>+ " " +>+ wordbs 
+                vlog Debug $ "[RunningCommand]: " +>+ command
+                post command
+    in highlight' (convert high) (map convert word')
