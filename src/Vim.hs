@@ -11,7 +11,7 @@ module Vim(
     , fatal, post
     , openLogFile
     , openLogFilePortable
-    , setLogLevel
+    , setLogLevel, tempFolder
     , LogLevel(..)
 )
 where
@@ -40,7 +40,7 @@ import Data.Char
 import Data.String.Utils
 import Data.Maybe
 
-import Data.Foldable (forM_)
+import Data.Foldable (forM_, asum)
 
 import Prelude hiding (log)
 import Text.Printf
@@ -168,9 +168,9 @@ openLogFile file ll = VimM $ \_ (VimData _ a b c) -> do
 tempFolder :: IO FilePath
 tempFolder = 
 #ifdef mingw32_OS_HOST
-    return "C:\\Windows\\Temp"
+    (</>"radiation/") <$> getEnv "TEMP"
 #else
-    return "/tmp"
+    ("/tmp/radiation"</>) <$> getEnv "USER"
 #endif
 
 openLogFilePortable :: FilePath -> LogLevel -> VimM ()

@@ -9,8 +9,10 @@ import Control.Monad
 import Data.Maybe (isNothing,fromJust)
 import My.Utils
 import Radiation.Parsers
+import System.Directory (createDirectoryIfMissing)
 import System.Environment
 import System.Exit
+import System.FilePath ((</>))
 import System.IO
 import Vim
 
@@ -28,20 +30,16 @@ availableParsers = Map.fromList
 
 
 withLogFile :: (Handle -> IO ()) -> IO ()
-withLogFile fn =
-#ifdef mingw32_HOST_OS
-    let filename = "C:\\Windows\\Temp\\radiation.log"
-#else
-    let filename = "/tmp/radiation.log"
-#endif
-        in
-        withFile filename WriteMode fn
+withLogFile fn = do
+    dirname <- tempFolder
+    withFile (dirname </> "radiation.log") WriteMode fn
 
 main :: IO ()
-main = withLogFile $ \flog ->
+main = do
+    createDirectoryIfMissing True =<< tempFolder
+    withLogFile $ \flog ->
        (>>=) getArgs $ \argv -> do
         let logf = hPutStrLn flog . ("[INFO] - "++)
-
 
         {- Start of main function -}
         logf "Starting Radiation"

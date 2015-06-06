@@ -8,7 +8,10 @@ RADIATION_DEBUG = 1
 radiation_pydebug = None
 g_running_process = None
 
-TEMP = os.getenv("TEMP") or "/tmp"
+if platform.system() == "Windows":
+    TEMP = os.path.join(os.getenv("TEMP"), "radiation")
+else:
+    TEMP = os.path.join("/tmp", "radiation", os.getenv("USER"))
 
 def debug(string):
     if radiation_pydebug:
@@ -78,7 +81,6 @@ def kill_running():
         g_running_process = None
 
     close_log()
-
 
 def radiation_source(filename):
     hashm = hashlib.md5()
