@@ -110,5 +110,5 @@ parser = R.Parser (const ["g:radiation_cpp_cc", "g:radiation_cpp_flags"]) $ \fil
          pure "-E", pure filename]
     
     reportErrors pipes $
-        withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP)
+        withParsingMap (Map.map (Set.filter (BSC.all isAlphaNum) . (Set.\\blacklist)) <$> parseCPP)
             <=< vGetHandleContents
