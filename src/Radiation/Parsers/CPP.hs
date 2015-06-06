@@ -3,32 +3,23 @@
 
 module Radiation.Parsers.CPP(parser) where
 
-import qualified Radiation.Parsers as R
-
-import Control.Applicative
+import Control.Applicative ((<$>), (<|>), many)
 import Control.Monad
-
-import Vim
-import Prelude hiding (log)
-
-import Data.Char as C
-import qualified Data.Map as Map
-
 import Data.Attoparsec.ByteString.Char8 as BP
-
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BSC
-
-import qualified Data.Set as Set
-
+import Data.Char (isAlphaNum, isDigit, isAlpha)
 import My.Utils
-import Debug.Trace
-
+import Prelude hiding (log)
 import Radiation.Parsers.Internal.CStyle
 import Radiation.Parsers.Internal.CommandParser
 import Radiation.Parsers.Internal.InternalIO
 import Radiation.Parsers.Internal.WithAttoparsec
+import Vim
 
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Radiation.Parsers as R
 
 blacklist :: Set.Set BS.ByteString
 blacklist = Set.fromList [
@@ -59,7 +50,7 @@ parseCPP :: Parser (Map.Map String (Set.Set BS.ByteString))
 parseCPP = 
     let
         word = skipSpace >> BP.takeWhile sat >>= ((>>) skipSpace . return)
-            where sat ch = C.isDigit ch || C.isAlpha ch || ch == '_'
+            where sat ch = isAlphaNum ch || ch == '_'
 
         {- Parse a class -}
         parseClass = choice $ map (\(k,v) -> string k *> fmap (v,) word) $ Map.toList typMap

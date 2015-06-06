@@ -16,37 +16,30 @@ module Vim(
 )
 where
     
-import Control.Monad.IO.Class
-import Control.Monad hiding (forM_)
+import Control.Applicative
+import Control.Arrow
 import Control.Exception
-
-import System.Process
-import Data.String
-
-import System.IO
-import System.Environment
+import Control.Monad hiding (forM_)
+import Control.Monad.Error.Class
+import Control.Monad.IO.Class
+import Data.ByteString (ByteString)
+import Data.Char
+import Data.Foldable (forM_, asum)
 import Data.Hash.MD5
-
-
+import Data.Maybe
+import Data.String
+import Data.String.Utils
+import My.Utils
+import Prelude hiding (log)
+import System.Environment
 import System.FilePath ((</>))
+import System.IO
+import System.Process
+import Text.Printf
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
-import Data.ByteString (ByteString)
-import Control.Applicative
-import Control.Arrow
-import Data.Char
-import Data.String.Utils
-import Data.Maybe
-
-import Data.Foldable (forM_, asum)
-
-import Prelude hiding (log)
-import Text.Printf
-import My.Utils
-
-import Control.Monad.Error.Class
 
 type VariableMap = Map.Map String String
 

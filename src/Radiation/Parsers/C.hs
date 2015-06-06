@@ -3,30 +3,24 @@
 
 module Radiation.Parsers.C(parser) where
 
-import qualified Radiation.Parsers as R
-import Data.Char (isAlphaNum)
-
 import Control.Applicative
 import Control.Monad
-
-import Vim
-import Prelude hiding (log)
-
-import qualified Data.Map as Map
-
 import Data.Attoparsec.ByteString.Char8 as BP
-
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BSC
-import qualified Data.Set as Set
+import Data.Char (isAlphaNum)
 import Data.Maybe (catMaybes)
-
 import My.Utils
-
+import Prelude hiding (log)
 import Radiation.Parsers.Internal.CStyle
 import Radiation.Parsers.Internal.CommandParser
 import Radiation.Parsers.Internal.InternalIO
 import Radiation.Parsers.Internal.WithAttoparsec
+import Vim
+
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Radiation.Parsers as R
 
 {- Keep radiation from highlighting already
  - defined keywords -}

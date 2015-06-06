@@ -1,4 +1,4 @@
-module Radiation.Parsers.Test where
+module Radiation.Parsers.Test(parser) where
 
 import Radiation.Parsers
 
