@@ -25,6 +25,7 @@ import Data.String
 
 import System.IO
 import System.Environment
+import Data.Hash.MD5
 
 
 import System.FilePath ((</>))
@@ -101,8 +102,8 @@ data VimData = VimData {
 
 dumpCommands :: FilePath -> VimData -> IO ()
 dumpCommands fp vd =
-    withFilePortable (printf "radiation_%s_x.vim" fp) WriteMode $
-        flip BS.hPutStr (commandBuffer vd `BS.append` "redraw!")
+    withFilePortable (printf "radiation_%s_x.vim" $ md5s $ Str fp) WriteMode $
+        flip BS.hPutStr (mconcat [commandBuffer vd, "\nredraw!"])
     
 
 {- The vim state monad. The central function is the ability to take a
