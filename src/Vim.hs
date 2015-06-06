@@ -165,16 +165,18 @@ openLogFile file ll = VimM $ \_ (VimData _ a b c) -> do
     fileh <- catchError (openFile file WriteMode) (const nullFile)
     return (VimData (Just (fileh,ll)) a b c, ())
 
-tempFolder :: FilePath
+tempFolder :: IO FilePath
 tempFolder = 
 #ifdef mingw32_OS_HOST
-    "C:\\Windows\\Temp"
+    return "C:\\Windows\\Temp"
 #else
-    "/tmp"
+    return "/tmp"
 #endif
 
 openLogFilePortable :: FilePath -> LogLevel -> VimM ()
-openLogFilePortable file = openLogFile (tempFolder </> file)
+openLogFilePortable file ll = do
+    tmpDir <- liftIO tempFolder
+    openLogFile (tmpDir </> file) ll
 
 setLogLevel :: LogLevel -> VimM ()
 setLogLevel ll = VimM $ \_ (VimData m a b c) ->
@@ -269,5 +271,7 @@ emptyData :: VimData
 emptyData = VimData Nothing Map.empty BS.empty Nothing
 
 withFilePortable :: FilePath -> IOMode -> (Handle -> IO ()) -> IO ()
-withFilePortable path = withFile (tempFolder </> path)
+withFilePortable path mode fn = do
+    tmpDir <- liftIO tempFolder
+    withFile (tmpDir </> path) mode fn
 
