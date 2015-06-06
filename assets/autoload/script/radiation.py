@@ -42,7 +42,7 @@ def radiate(filename, filetype):
 
     open_log()
 
-    radiation_source(filename)
+    radiation_source(filename, True) # source the cached version if it exists
 
     radiation_binary = get_default("g:radiation_binary", "radiation")
 
@@ -82,15 +82,20 @@ def kill_running():
 
     close_log()
 
-def radiation_source(filename):
+def radiation_source(filename, is_cache=False):
     hashm = hashlib.md5()
     hashm.update(filename)
     hashname = hashm.hexdigest()
 
+    cache = ".cache" if is_cache else ""
+
     # the filename of the radiated content is now
     # stored in the file $TEMP/radiation_$(md5sum filename)_x.vim
-    newfilename = "%s/radiation_%s_x.vim" % (TEMP, hashname)
+    newfilename = "%s/radiation_%s_x.vim%s" % (TEMP, hashname, cache)
     debug("sourcing: " + newfilename)
 
     if os.path.isfile(newfilename):
         vim.command("source " + newfilename)
+        if not is_cache:
+            # move the sourced file to the cached file
+            os.rename(newfilename, newfilename + ".cache")
