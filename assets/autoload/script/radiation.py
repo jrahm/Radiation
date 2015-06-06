@@ -68,7 +68,7 @@ def radiate(filename, filetype):
     g_running_process = subprocess.Popen(argv)
     debug("detach process")
 
-    close_log()
+    # close_log()
 
 def kill_running():
     global g_running_process
@@ -80,7 +80,7 @@ def kill_running():
         g_running_process.terminate()
         g_running_process = None
 
-    close_log()
+    # close_log()
 
 def radiation_source(filename, is_cache=False):
     hashm = hashlib.md5()
