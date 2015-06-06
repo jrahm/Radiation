@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP #-}
 module Main where
 
+import Debug.Trace
+
 import Control.Applicative
 import Control.Arrow (second)
 import Control.Monad
@@ -54,17 +56,18 @@ main = withLogFile $ \flog ->
         {-Get the filename and the type of the file -}
         let (file:typ:_) = argv
         case argv of
-            [_:_:"--requires"] ->
+            [_,_,"--requires"] ->
                 {- The client code is attempting to figure out what
                  - this parser will need to complete its task -}
                 let parser = Map.lookup typ availableParsers in
 
                 case parser of
                     Nothing -> putStrLn "no such parser" >> exitWith (ExitFailure 1)
-                    Just (Parser req _) -> mapM_ putStrLn $ req file
+                    Just (Parser req _) ->
+                        mapM_ putStrLn $ req file
             
             (_:_:arguments) ->
-                let arguments' = map (break (==':')) arguments
+                let arguments' = map (break (=='=')) arguments
                     argmap = Map.fromList (map (second tail) arguments')
                     parser = Map.lookup typ availableParsers
                     in
