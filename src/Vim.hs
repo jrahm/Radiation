@@ -1,57 +1,47 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE CPP #-}
-
-{- The module which contains the Vim monad. This monad
+{-# LANGUAGE CPP #-} {- The module which contains the Vim monad. This monad
  - is a state monad which handles the connection
  - to the Vim client -}
 module Vim(
       VimM(..)
-    , runVimM, query, log, detach
-    , vlog, queryDefault, bracketV
+    , runVimM, query, log
+    , vlog, queryDefault
     , debug, info, Vim.error, warn
-    , fatal, post, openSocketDataPipe
-    , openServerDataPipe, openLogFile
+    , fatal, post
+    , openLogFile
     , openLogFilePortable
-    , setLogLevel, VimSocketAddress
-    , LogLevel(..), DataPipe
+    , setLogLevel, tempFolder
+    , LogLevel(..)
 )
 where
     
-import Control.Monad.IO.Class
-import Control.Monad hiding (forM_)
+import Control.Applicative
+import Control.Arrow
 import Control.Exception
-
-import System.Process
+import Control.Monad hiding (forM_)
+import Control.Monad.Error.Class
+import Control.Monad.IO.Class
+import Data.ByteString (ByteString)
+import Data.Char
+import Data.Foldable (forM_, asum)
+import Data.Hash.MD5
+import Data.Maybe
 import Data.String
-
-import System.IO
+import Data.String.Utils
+import My.Utils
+import Prelude hiding (log)
 import System.Environment
-
-
 import System.FilePath ((</>))
+import System.IO
+import System.Process
+import Text.Printf
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
-import Data.ByteString (ByteString)
-import Control.Applicative
-import Control.Arrow
-import Data.Char
-import Data.String.Utils
-import Data.Maybe
 
-import Data.Foldable (forM_)
-
-import Prelude hiding (log)
-import Text.Printf
-import My.Utils
-
-import Control.Monad.Error.Class
-
-
-type VimServerAddress = String
-type VimSocketAddress = String
+type VariableMap = Map.Map String String
 
 {- Log levels to help with debugging -}
 data LogLevel = Debug | Info | Warning | Error | Fatal deriving (Show,Enum,Ord,Eq)
@@ -103,38 +93,16 @@ data VimData = VimData {
     , _vimLogLevel :: Maybe LogLevel
 }
 
-{- Abstraction of a connection to the server. Comes
- - in 2 flavors: Asyncronous and Synchronous -}
-data DataPipe = DataPipe {
-     {- Queries Vim for the value of a variable.
-      - If that variable does not exist, the empty
-      - string is returned -}
-     queryVariable :: String -> IO (Maybe String)
-
-      {- Evaluate an expression in vim and return the
-       - result -}
-    , evaluateExpression :: String -> IO String
-
-     {- Post an error to Vim -}
-    , postError :: LogLevel -> String -> IO ()
-
-      {- Post a command to Vim. Do not expect the
-       - result to occur right away -}
-    , postCommand_ :: VimData -> String -> IO VimData
-
-      {- Execute all the commands -}
-    , flushCommands_ :: VimData -> IO ()
-
-      {- Tell Vim when it may be able to detach. Once, detached,
-       - there is no way to access anything from Vim after
-       - than -}
-    , detach_ :: VimData -> IO ()
-}
+dumpCommands :: FilePath -> VimData -> IO ()
+dumpCommands fp vd =
+    withFilePortable (printf "radiation_%s_x.vim" $ md5s $ Str fp) WriteMode $
+        flip BS.hPutStr (mconcat [commandBuffer vd, "\nredraw!"])
+    
 
 {- The vim state monad. The central function is the ability to take a
  - connection to the Vim client (DataPipe) and data and return
  - a mutated version of said data with a variable -}
-data VimM a = VimM (DataPipe -> VimData -> IO (VimData, a))
+data VimM a = VimM (VariableMap -> VimData -> IO (VimData, a))
 
 {- Overloading some instances of VimM -}
 instance Functor VimM where
@@ -171,7 +139,7 @@ getLogLevel = VimM $ \dp vd@(VimData lh cache combuf ll) ->
             (<|>Just Error) <$>
                 (fmap readLogLevel <$> rVim (query "g:radiation_log_level") dp vd) 
 
-    where rVim :: VimM a -> DataPipe -> VimData -> IO a
+    where rVim :: VimM a -> VariableMap -> VimData -> IO a
           rVim (VimM f) dp vd = snd <$> f dp vd
 
 nullFile :: IO Handle
@@ -193,15 +161,15 @@ openLogFile file ll = VimM $ \_ (VimData _ a b c) -> do
 tempFolder :: IO FilePath
 tempFolder = 
 #ifdef mingw32_OS_HOST
-    getEnv "TEMP"
+    (</>"radiation/") <$> getEnv "TEMP"
 #else
-    return "/tmp"
+    ("/tmp/radiation"</>) <$> getEnv "USER"
 #endif
 
 openLogFilePortable :: FilePath -> LogLevel -> VimM ()
 openLogFilePortable file ll = do
-    tmpFolder <- liftIO tempFolder
-    openLogFile (tmpFolder </> file) ll
+    tmpDir <- liftIO tempFolder
+    openLogFile (tmpDir </> file) ll
 
 setLogLevel :: LogLevel -> VimM ()
 setLogLevel ll = VimM $ \_ (VimData m a b c) ->
@@ -211,11 +179,12 @@ setLogLevel ll = VimM $ \_ (VimData m a b c) ->
 {- Run a Vim monad. Must specify the
  - type of connection to use to the vim
  - server. -}
-runVimM :: DataPipe -> VimM a -> IO a
-runVimM pipe (VimM func) = do
-    (dat@(VimData may _ _ _), ret) <- func pipe emptyData
-    forM_ may $ hFlush . fst
-    flushCommands_ pipe dat
+runVimM :: VariableMap -> FilePath -> (FilePath -> VimM a) -> IO a
+runVimM variableMap filename fn = do
+    let (VimM func) = fn filename
+
+    (dat, ret) <- func variableMap emptyData
+    dumpCommands filename dat
     return ret
 
 getEnvSafe :: String -> IO (Maybe String)
@@ -228,37 +197,18 @@ getEnvSafe str = catch (Just <$> getEnv str) $ \e -> do
  - or Nothing otherwise. This will keep track
  - of a cache to minimize calls to the vim server. -}
 query :: String -> VimM (Maybe String)
-query str = VimM  $ \dp vd@(VimData lh cache combuf ll) -> case str of
+query str = VimM  $ \varMap vd@(VimData lh cache combuf ll) -> case str of
     ('$':env') -> 
         logVimData Debug vd "Reading environment variable" >>
         (vd,) <$> liftIO (getEnvSafe env')
     _ -> do
         logVimData Debug vd $ "looking up variable " ++ str
-        case Map.lookup str cache of
-            Just x -> logVimData Debug vd ("cached result found: " ++ x) $> (vd, Just x)
-            Nothing -> do
-                val' <- queryVariable dp str
-    
-                maybe ( logVimData Debug vd "No result returned" $>
-                        (vd, Nothing) )
-    
-                    (\val -> let nm = Map.insert str val cache in
-                            logVimData Debug vd ("result " ++ val) $>
-                            (VimData lh nm combuf ll, Just val))
-                    val'
-
-detach :: VimM ()
-detach = VimM $ \dp d -> detach_ dp d $> (d,())
+        return (vd, Map.lookup str varMap)
 
 {- Like above, but specify a default value in case the variable
  - does net extist -}
 queryDefault :: String -> String -> VimM String
 queryDefault str def = fromMaybe def <$> query str
-
-{- Log to vim directly -}
-log' :: LogLevel -> String -> VimM ()
-log' level str = VimM  $ \datapipe vimdata ->
-        postError datapipe level str >> return (vimdata,())
 
 
 {- Log to the handle -}
@@ -277,16 +227,11 @@ logVimData level vimdata str =
             hFlush handle
     
 
-bracketV :: VimM a -> VimM a
-bracketV f = f <* detach
-
 {- Log to both the log file and Vim -}
 log :: LogLevel -> String -> VimM ()
 log level str = do
     vimlevel <- getLogLevel
     logToHandle level str
-    when (vimlevel <= level) $
-        log' level str
 
 {- Synonym for log -}
 vlog :: LogLevel -> String -> VimM ()
@@ -294,8 +239,9 @@ vlog = log
 
 {- Post a command to the Vim client. -}
 post :: String -> VimM ()
-post str = VimM $ \datapipe vimdata ->
-    (,()) <$> postCommand_ datapipe vimdata str
+post str = VimM $ \_ (VimData lh cv commandBuffer ll) ->
+    let commandBuffer' = mconcat [commandBuffer, "\n", BSC.pack str] in
+    return (VimData lh cv commandBuffer' ll, ())
 
 {- Synonyms for common log functions -}
 debug :: String -> VimM ()
@@ -317,63 +263,8 @@ fatal = log Fatal
 emptyData :: VimData
 emptyData = VimData Nothing Map.empty BS.empty Nothing
 
-{- Create a new synchronous based connection over
- - stdin and stdout -}
-openSocketDataPipe :: Handle -> Handle -> DataPipe
-openSocketDataPipe input output = DataPipe {
-    queryVariable = \str -> hPutStrLn input ("q:" ++ str) >> hFlush input >> fmap tos (hGetLine output),
-    evaluateExpression = \str -> hPutStrLn input ("e:" ++ str) >> hFlush input >> hGetLine output,
-    postError = \le str -> hPutStrLn input ("p:" ++ letter le ++ ":" ++ str),
-    
-    postCommand_ = \dp str -> 
-        let (VimData _log' cache buf ll) = dp in
-        return (VimData _log' cache (buf `BS.append` BSC.pack (str++"\n")) ll),
-
-    flushCommands_ = \dp ->
-        {- Write the commands to a file. This file will be sourced
-         - by the server after a timeout -}
-        withFilePortable "radiationx.vim" WriteMode $
-            flip BS.hPutStr (commandBuffer dp `BS.append`"redraw!"),
-
-    detach_ = const $ hPutStrLn input "d:"
-} where tos str = if not $ null str then Just $ tail str else Nothing
-
 withFilePortable :: FilePath -> IOMode -> (Handle -> IO ()) -> IO ()
-withFilePortable path ioMode fn = do
-    tmpFolder <- tempFolder
-    withFile (tmpFolder </> path) ioMode fn
+withFilePortable path mode fn = do
+    tmpDir <- liftIO tempFolder
+    withFile (tmpDir </> path) mode fn
 
-
-runExpression' :: VimServerAddress -> String -> IO String
-runExpression' addr expr = 
-    (>>=) (runInteractiveProcess "/usr/bin/vim"
-        ["/usr/bin/vim", "--servername", addr, "--remote-expr", expr] Nothing Nothing) $
-            \(_,stout,_,_) -> hGetContents stout
-
-{- Open connection to the Vim client via asynchronous
- - callback -}
-openServerDataPipe :: VimServerAddress -> DataPipe
-openServerDataPipe addr =
-    DataPipe {
-        queryVariable = \var ->
-            fmap (tos . strip) $ runExpression' addr $ printf "exists('%s') ? '.' . %s : ''" var var,
-
-        evaluateExpression = runExpression' addr,
-
-        postCommand_ = \dp str -> 
-            let (VimData _log' cache buf ll) = dp in
-            return (VimData _log' cache (buf `BS.append` BSC.pack (str++"\n")) ll),
-
-        flushCommands_ = \dp -> do
-            tmpFolder <- tempFolder
-            {- Write the commands to a file. This file will be sourced
-             - by the server after a timeout -}
-            withFile ((tmpFolder </> "radiationx.")++addr++".vim") WriteMode $
-                flip BS.hPutStr (commandBuffer dp `BS.append`"redraw!"),
-
-        postError = \_le _str -> return (), -- sendCommand addr $ fromString $ "echoerr '" ++ show le ++ ": " ++ str
-
-        detach_ = const (return ())
-
-    } where tos str = if not $ null str then Just $ tail str else Nothing
-            (>&>) f g b = f b >> g b

@@ -1,4 +1,4 @@
-module Radiation.Parsers.Test where
+module Radiation.Parsers.Test(parser) where
 
 import Radiation.Parsers
 
@@ -11,7 +11,7 @@ import Prelude hiding (log)
 {- Very basic test parser. Reads data from crack lib and highlights
  - all the words from it -}
 parser :: Parser
-parser = Parser $ \_ -> do
+parser = Parser (const []) $ \_ -> do
     openLogFilePortable "test_radiation.log" Debug
 
     log Info "Start test parser"

@@ -56,10 +56,6 @@ deadlock has been known to occur in some cases. Killing the process is sufficien
 to halt the deadlock. It is important to be sure of stability before adding
 Radiation to any auto commands.
 
-2. Radiation is not at the moment portable. Mac and BSD support may work well, though
-I have not had the ability to try. Windows support is distant but possible. Right now,
-Linux is the best bet.
-
 3. If you are running a restricted version of Vim. The plugin requires an unrestricted
 version of vim to run since it executes an external program.
 
@@ -69,3 +65,10 @@ version of vim to run since it executes an external program.
 2. Once installed, this plugin will allow you to run the command `:Radiate`. This
 will add additional synatax highlighting to C++ and C files.
 
+## Changes
+
+1. Radiation can now compile for Windows! Still in early stages of testing though.
+2. Radiation now uses user-private directories in temporary folders to place files
+3. Radiation now uses a caching system to radiate files instantly that were previously radiated
+4. Radiation system has been completely overhauled to provide the illusion of asychronisity even
+   without the server feature!

@@ -53,7 +53,7 @@ function! radiation#Radiate()
     " Call the python function
     " to radiate the file with the filetype
     let g:radiation_running=1
-	exec printf('python radiate( "%s", "%s", "%s" )', expand("%"), &filetype, "" )
+	exec printf('python radiate("%s", "%s")', expand("%"), &filetype)
 
     redraw!
 
@@ -74,26 +74,12 @@ function! radiation#Kill()
 endfunction
 
 function! radiation#TrySource()
-    if exists('v:servername') && v:servername != ""
-        let filename = '/tmp/radiationx.'.v:servername.'.vim'
-    else
-        " TODO change the name of this file
-        let filename = '/tmp/radiationx.vim'
-    endif
-    if filereadable(filename)
-        " check to see if the file to source exists.
-        " source and delete
-        exec 'source '.filename
-        call delete(filename)
-        let g:radiation_running=0
-    endif
+    exec printf('python radiation_source("%s")', expand("%"))   
 endfunction
 
 let g:radiation_running=0
 
 function! radiation#SourceAndRun()
-    call radiation#TrySource()
-
     if g:radiation_running == 0
         call radiation#Radiate()
     endif

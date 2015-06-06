@@ -23,8 +23,9 @@ call TryHighlight("RadiationCTypedef",  "3")
 call TryHighlight("RadiationCppClass",  "3")
 
 augroup Radiation
-    autocmd BufEnter *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
-    autocmd CursorHold *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
-    autocmd InsertLeave *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
-    autocmd InsertEnter *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
+    autocmd BufEnter *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
+    autocmd BufLeave *.c,*.cpp,*.h,*.hpp call radiation#Kill()
+    autocmd CursorHold *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
+    autocmd InsertLeave *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
+    autocmd InsertEnter *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
 augroup END
