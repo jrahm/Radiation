@@ -38,7 +38,7 @@ highlight high word' =
                 wordbs = mconcat $ intersperse " "  word
                 in
             unless (null word) $ do
-                let command = "syn keyword" +>+ highlighting +>+ " " +>+ wordbs 
+                let command = "syn keyword " +>+ highlighting +>+ " " +>+ wordbs 
                 vlog Debug $ "[RunningCommand]: " +>+ command
                 post command
     in highlight' (convert high) (map convert word')

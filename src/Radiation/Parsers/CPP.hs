@@ -51,7 +51,7 @@ parseCPP =
     let
         maybeP parser = (Just <$> parser) <|> return Nothing
         spaced parser = skipSpace >> parser <* skipSpace
-        word = skipSpace >> BP.takeWhile sat >>= ((>>) skipSpace . return)
+        word = skipSpace >> BP.takeWhile sat <* skipSpace
             where sat ch = isAlphaNum ch || ch == '_'
 
         {- Parse a class -}
