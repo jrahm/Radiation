@@ -16,25 +16,21 @@ import System.FilePath ((</>))
 import System.IO
 import Vim
 
-import qualified Data.Map as Map
-import qualified Radiation.Parsers.Languages.C as C
-import qualified Radiation.Parsers.Languages.CPP as CPP
-import qualified Radiation.Parsers.Languages.Test as Test
-import qualified Radiation.Parsers.Languages.JavaScript as JavaScript
-
-availableParsers :: Map.Map String Parser
-availableParsers = Map.fromList
-    [  ("test",Test.parser)
-     , ("c", C.parser)
-     , ("cpp", CPP.parser)
-     , ("javascript", JavaScript.parser)
-     ]
-
+import Data.Map (fromList)
+import qualified Radiation.Registry as Registry
 
 withLogFile :: (Handle -> IO ()) -> IO ()
 withLogFile fn = do
     dirname <- tempFolder
     withFile (dirname </> "radiation.log") WriteMode fn
+
+printHelp :: IO ()
+printHelp = mapM_ putStrLn 
+    [ "Radiation: context aware syntax highlighting for Vim"
+    , "Usage: radiation --available"
+    , "       radiation <filename> <file type> --requires"
+    , "       radiation <filename> <file type> [[variables] ...]"
+    ]
 
 main :: IO ()
 main = do
@@ -46,34 +42,22 @@ main = do
         {- Start of main function -}
         logf "Starting Radiation"
 
-        {- Checking argument length -}
-        when (length argv < 2) $
-            putStrLn "Not enough arguments. Takes filename and type" >>
-            logf "Not enough arguments specified" >>
-            exitWith (ExitFailure 1)
-
 
         {-Get the filename and the type of the file -}
-        let (file:typ:_) = argv
         case argv of
-            [_,_,"--requires"] ->
+            ["--available"] -> mapM_ putStrLn Registry.available
+
+            [file,typ,"--requires"] -> do
                 {- The client code is attempting to figure out what
-                 - this parser will need to complete its task -}
-                let parser = Map.lookup typ availableParsers in
-
-                case parser of
-                    Nothing -> putStrLn "no such parser" >> exitWith (ExitFailure 1)
-                    Just (Parser req _) ->
-                        mapM_ putStrLn $ req file
+                 3a- this parser will need to complete its task -}
+                (Parser req _) <- Registry.lookupIO typ
+                mapM_ putStrLn $ req file
             
-            (_:_:arguments) ->
+            (file:typ:arguments) ->
                 let arguments' = map (break (=='=')) arguments
-                    argmap = Map.fromList (map (second tail) arguments')
-                    parser = Map.lookup typ availableParsers
-                    in
+                    argmap = fromList (map (second tail) arguments')
+                    in do
+                (Parser _ fn) <- Registry.lookupIO typ
+                runVimM argmap file fn
 
-                case parser of
-                    Nothing -> putStrLn "no such parser" >> exitWith (ExitFailure 1)
-                    Just (Parser _ fn) -> runVimM argmap file fn
-
-            _ -> putStrLn "Error parsing command line parameters"
+            _ -> putStrLn "Error parsing command line parameters" >> printHelp
