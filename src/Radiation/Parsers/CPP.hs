@@ -49,15 +49,17 @@ typMap = Map.fromList [
 parseCPP :: Parser (Map.Map String (Set.Set BS.ByteString))
 parseCPP = 
     let
+        maybeP parser = (Just <$> parser) <|> return Nothing
+        spaced parser = skipSpace >> parser <* skipSpace
         word = skipSpace >> BP.takeWhile sat >>= ((>>) skipSpace . return)
             where sat ch = isAlphaNum ch || ch == '_'
 
         {- Parse a class -}
         parseClass =
-            (string "class"  >> ("RadiationCppClass",)  <$> word) <|>
-            (string "struct" >> ("RadiationCppStruct",) <$> word) <|>
-            (string "union"  >> ("RadiationCppUnion",)  <$> word) <|>
-            (string "enum"   >> ("RadiationCppEnum",)   <$> word)
+            (string "class"  >> maybeP (spaced attribute) >> ("RadiationCppClass",)  <$> word) <|>
+            (string "struct" >> maybeP (spaced attribute) >> ("RadiationCppStruct",) <$> word) <|>
+            (string "union"  >> maybeP (spaced attribute) >> ("RadiationCppUnion",)  <$> word) <|>
+            (string "enum"   >> maybeP (spaced attribute) >> ("RadiationCppEnum",)   <$> word)
 
         parseTypedef :: Parser [(String,BSC.ByteString)]
         parseTypedef = do
@@ -92,8 +94,7 @@ parseCPP =
               (anyChar $> [])
         in
 
-    subparse (removePattern attribute) $
-                (fromList' . concat) <$> many one
+        (fromList' . concat) <$> many one
 
    where fromList' :: (Ord a, Ord b) => [(a,b)] -> Map.Map a (Set.Set b)
          fromList' = foldl (\mp (k,v) ->
