@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Radiation.Parsers.Test(parser) where
+module Radiation.Parsers.Languages.Test(parser) where
 
 import Radiation.Parsers
 

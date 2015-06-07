@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Radiation.Parsers.C(parser) where
+module Radiation.Parsers.Languages.C(parser) where
 
 import Control.Applicative
 import Control.Monad

@@ -17,15 +17,17 @@ import System.IO
 import Vim
 
 import qualified Data.Map as Map
-import qualified Radiation.Parsers.C as C
-import qualified Radiation.Parsers.CPP as CPP
-import qualified Radiation.Parsers.Test as Test
+import qualified Radiation.Parsers.Languages.C as C
+import qualified Radiation.Parsers.Languages.CPP as CPP
+import qualified Radiation.Parsers.Languages.Test as Test
+import qualified Radiation.Parsers.Languages.JavaScript as JavaScript
 
 availableParsers :: Map.Map String Parser
 availableParsers = Map.fromList
     [  ("test",Test.parser)
      , ("c", C.parser)
      , ("cpp", CPP.parser)
+     , ("javascript", JavaScript.parser)
      ]
 
 

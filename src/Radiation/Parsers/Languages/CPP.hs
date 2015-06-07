@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Radiation.Parsers.CPP(parser) where
+module Radiation.Parsers.Languages.CPP(parser) where
 
 import Control.Applicative ((<$>), (<|>), many)
 import Control.Monad

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Radiation.Parsers.JavaScript(parser) where
+module Radiation.Parsers.Languages.JavaScript(parser) where
 
 import Control.Monad
 
