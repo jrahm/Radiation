@@ -35,11 +35,11 @@ augroup Radiation
 
     " If we can do it async, then run
     " in the backgrout automagically
-    autocmd BufEnter *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
-    autocmd BufLeave *.c,*.cpp,*.h,*.hpp call radiation#Kill()
-    autocmd CursorHold *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
-    autocmd InsertLeave *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
-    autocmd InsertEnter *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
+    autocmd BufEnter    * call radiation#SourceAndRun()
+    autocmd BufLeave    * call radiation#Kill()
+    autocmd CursorHold  * call radiation#SourceAndRun()
+    autocmd InsertLeave * call radiation#SourceAndRun()
+    autocmd InsertEnter * call radiation#SourceAndRun()
 
 augroup END
 
@@ -52,10 +52,10 @@ function radiation#RadiationNoAuto()
 
 augroup Radiation
     autocmd!
-    autocmd BufEnter *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
-    autocmd CursorHold *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
-    autocmd InsertLeave *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
-    autocmd InsertEnter *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
+    autocmd BufEnter    * call radiation#TrySource()
+    autocmd CursorHold  * call radiation#TrySource()
+    autocmd InsertLeave * call radiation#TrySource()
+    autocmd InsertEnter * call radiation#TrySource()
 augroup END
 
 endfunction

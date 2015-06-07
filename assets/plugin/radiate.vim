@@ -9,7 +9,11 @@ function TryHighlight(name, cterm)
     endif
 endfunction
 
-let s:radiation=expand("<sfile>:p:h")."/radiation" " Path to the current directory
+if has("win32")
+    let s:radiation=expand("<sfile>:p:h")."/radiation.exe" " Path to the current directory
+else
+    let s:radiation=expand("<sfile>:p:h")."/radiation" " Path to the current directory
+endif
 
 if executable(s:radiation) 
     let g:radiation_binary=s:radiation
@@ -23,9 +27,9 @@ call TryHighlight("RadiationCTypedef",  "3")
 call TryHighlight("RadiationCppClass",  "3")
 
 augroup Radiation
-    autocmd BufEnter *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
-    autocmd BufLeave *.c,*.cpp,*.h,*.hpp call radiation#Kill()
-    autocmd CursorHold *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
-    autocmd InsertLeave *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
-    autocmd InsertEnter *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
+    autocmd BufEnter    * call radiation#SourceAndRun()
+    autocmd BufLeave    * call radiation#Kill()
+    autocmd CursorHold  * call radiation#SourceAndRun()
+    autocmd InsertLeave * call radiation#SourceAndRun()
+    autocmd InsertEnter * call radiation#SourceAndRun()
 augroup END
