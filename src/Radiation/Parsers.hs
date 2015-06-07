@@ -9,10 +9,11 @@ import Data.Char (isAlphaNum)
 
 import My.Utils ((+>+))
 import Data.ByteString as BS (ByteString)
-import Data.ByteString.Char8 as BSC (all)
+import Data.ByteString.Char8 as BSC (all, putStrLn)
 
 import Data.Convertible (Convertible, convert)
 import Data.List (intersperse)
+import Control.Monad.IO.Class (liftIO)
 
 {- A parser has a couple of things. First is a list
  - of the variables it requires to complete. Second is
@@ -40,5 +41,6 @@ highlight high word' =
             unless (null word) $ do
                 let command = "syn keyword " +>+ highlighting +>+ " " +>+ wordbs 
                 vlog Debug $ "[RunningCommand]: " +>+ command
+                liftIO $ BSC.putStrLn command
                 post command
     in highlight' (convert high) (map convert word')

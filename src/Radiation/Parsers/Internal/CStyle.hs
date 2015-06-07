@@ -40,8 +40,13 @@ subparse bsParser myParser = do
 
 {- Take an identifier from the parser -}
 identifier :: Parser BS.ByteString
-identifier = skipSpace *> BP.takeWhile sat <* skipSpace
-    where sat ch = C.isDigit ch || C.isAlpha ch || ch == '_'
+identifier = skipSpace *> BP.takeWhile isIdentifierChar <* skipSpace
+
+notIdentifier :: Parser BS.ByteString
+notIdentifier = skipSpace *> BP.takeWhile (\c -> not (isIdentifierChar c || isSpace c)) <* skipSpace
+
+isIdentifierChar :: Char -> Bool
+isIdentifierChar ch = C.isDigit ch || C.isAlpha ch || ch == '_'
 
 between :: Char -> Char -> Parser BS.ByteString
 between open close = skipSpace *> char open *> (between open close <|> BP.takeWhile sat) <* char close
