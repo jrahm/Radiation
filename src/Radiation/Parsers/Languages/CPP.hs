@@ -7,6 +7,7 @@ import Control.Applicative ((<$>), (<|>), many)
 import Control.Monad
 import Data.Attoparsec.ByteString.Char8 as BP
 import Data.Char (isAlphaNum, isDigit, isAlpha)
+import Debug.Trace
 import My.Utils
 import Prelude hiding (log)
 import Radiation.Parsers.Internal.CStyle
@@ -55,39 +56,23 @@ parseCPP =
             where sat ch = isAlphaNum ch || ch == '_'
 
         {- Parse a class -}
-        parseClass =
-            (string "class"  >> maybeP (spaced attribute) >> ("RadiationCppClass",)  <$> word) <|>
-            (string "struct" >> maybeP (spaced attribute) >> ("RadiationCppStruct",) <$> word) <|>
-            (string "union"  >> maybeP (spaced attribute) >> ("RadiationCppUnion",)  <$> word) <|>
-            (string "enum"   >> maybeP (spaced attribute) >> ("RadiationCppEnum",)   <$> word)
+        parseElement =
+            (string "class"       >> maybeP (spaced attribute) >> ("RadiationCppClass",)     <$> word) <|>
+            (string "struct"      >> maybeP (spaced attribute) >> ("RadiationCppStruct",)    <$> word) <|>
+            (string "union"       >> maybeP (spaced attribute) >> ("RadiationCppUnion",)     <$> word) <|>
+            (string "enum"        >> maybeP (spaced attribute) >> ("RadiationCppEnum",)      <$> word) <|>
+            (string "namespace"   >> maybeP (spaced attribute) >> ("RadiationCppNamespace",) <$> word) <|>
+            (string "typedef"     >> maybeP (spaced attribute) >> ("RadiationCppTypedef",) <$> typedef <* trace "Made it here!" (return ()))
 
-        parseTypedef :: Parser [(String,BSC.ByteString)]
-        parseTypedef = do
-                _ <- string "typedef"
-
-                (do 
-                    {- parse the typedef of template:
-                     - typedef struct [name] { ... } [ident] -}
-                    typ <- skipSpace *> (choice . map string) (Map.keys typMap)
-                    id1' <- (option Nothing (Just <$> identifier))
-                    let id1 = (,) <$> Map.lookup typ typMap <*> id1'
-
-                    (addJust id1 . return . ("RadiationCTypedef",))
-                        <$> (skipSpace *> (option "" body) *> identifier)) <|>
-
-                    {- Or as the original typedef ... [ident]; -}
-                    ((return . ("RadiationCTypedef",) . last . BSC.words) <$> BP.takeWhile (/=';'))
-
-        parseNamespace = string "namespace" *>
-                         fmap ("RadiationCppNamespace",) word
+        typedef = trace "Typedef..." $ do
+            -- void (string "struct" >> skipSpace >> (body <|> (identifier >> body) <|> identifier)) <|> return ()
+            bs <- BP.takeWhile (/=';')
+            trace (show (last $ BSC.words bs)) $
+                return $ last $ BSC.words bs
 
         one =
               {- Try to parse a class -}
-              (return <$> parseClass) <|> 
-              {- Try to parse a typedef -}
-              parseTypedef <|>
-              {- Try to parse an namespace -}
-              (return <$> parseNamespace) <|>
+              (return <$> parseElement) <|> 
               {- take until the next space -}
               (BP.takeWhile1 (not . isSpace) >> BP.takeWhile1 isSpace $> []) <|>
               {- take any char otherwise -}
@@ -114,5 +99,5 @@ parser = R.Parser (const ["g:radiation_cpp_cc", "g:radiation_cpp_flags"]) $ \fil
          pure "-E", pure filename]
     
     reportErrors pipes $
-        withParsingMap (Map.map (Set.filter (BSC.all isAlphaNum) . (Set.\\blacklist)) <$> parseCPP)
+        withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP)
             <=< vGetHandleContents

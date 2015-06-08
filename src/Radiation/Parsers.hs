@@ -35,9 +35,11 @@ runParser str (Parser _ func) = func str
 highlight :: (Convertible a ByteString, Convertible b ByteString) => a -> [b] -> VimM ()
 highlight high word' =
     let highlight' highlighting words = 
-            let word = filter (BSC.all isAlphaNum) words
+            let word = filter (BSC.all $ \c -> isAlphaNum c || c == '_') words
                 wordbs = mconcat $ intersperse " "  word
-                in
+                in do
+
+            liftIO $ BSC.putStrLn $ "\" " +>+ highlighting +>+ " " +>+ wordbs
             unless (null word) $ do
                 let command = "syn keyword " +>+ highlighting +>+ " " +>+ wordbs 
                 vlog Debug $ "[RunningCommand]: " +>+ command
