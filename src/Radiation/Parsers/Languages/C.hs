@@ -114,4 +114,4 @@ parser = R.Parser (const ["g:radiation_c_cc", "g:radiation_c_flags"]) $ \filenam
                 pure "-E", pure filename] >>= runCommand
 
     reportErrors pipes $
-        withParsingMap (Map.map (Set.filter (BSC.all isAlphaNum) . (Set.\\blacklist)) <$> parseC) <=< vGetHandleContents;
+        withParsingMap (Map.map (Set.\\blacklist) <$> parseC) <=< vGetHandleContents;
