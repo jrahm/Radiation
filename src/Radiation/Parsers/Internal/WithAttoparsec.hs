@@ -1,3 +1,6 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 module Radiation.Parsers.Internal.WithAttoparsec where
     
 import Data.Attoparsec.ByteString.Char8 as BP
@@ -20,7 +23,7 @@ withParsing parser trans filestr =
         
         {- The parsing failed. -}
         Lazy.Fail _ _ err ->
-            vlog Error $ "Unable to parse: " ++ err
+            vlog Error $ "Unable to parse: " +>+ BSC.pack err
 
         {- The parsing succeeded and handle the correct result -}
         Lazy.Done _ val ->
@@ -29,9 +32,8 @@ withParsing parser trans filestr =
 
 withParsingMap :: Parser (Map.Map String (Set.Set BS.ByteString)) ->
                   BSL.ByteString -> VimM ()
-
 withParsingMap parserm= withParsing parserm def
     where def val = Map.toList val <<?
             \(hi,v) -> 
-                R.highlight hi (map BSC.unpack (Set.toList v))
+                R.highlight (BSC.pack hi) (Set.toList v)
 

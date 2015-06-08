@@ -1,31 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Radiation.Parsers.C(parser) where
-
-import qualified Radiation.Parsers as R
+module Radiation.Parsers.Languages.C(parser) where
 
 import Control.Applicative
 import Control.Monad
-
-import Vim
-import Prelude hiding (log)
-
-import qualified Data.Map as Map
-
 import Data.Attoparsec.ByteString.Char8 as BP
-
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BSC
-import qualified Data.Set as Set
+import Data.Char (isAlphaNum)
 import Data.Maybe (catMaybes)
-
 import My.Utils
-
+import Prelude hiding (log)
 import Radiation.Parsers.Internal.CStyle
 import Radiation.Parsers.Internal.CommandParser
 import Radiation.Parsers.Internal.InternalIO
 import Radiation.Parsers.Internal.WithAttoparsec
+import Vim
+
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import qualified Radiation.Parsers as R
 
 {- Keep radiation from highlighting already
  - defined keywords -}
@@ -109,11 +104,11 @@ parseC = let
          addJust (Just x) = (x:)
 
 parser :: R.Parser
-parser = R.Parser $ \filename -> do
+parser = R.Parser (const ["g:radiation_c_cc", "g:radiation_c_flags"]) $ \filename -> do
     openLogFilePortable "c_radiation.log" Debug
     vlog Info "Starting C Parser"
 
-    pipes <- (bracketV.sequence) {- bracketV automatically detaches from vim -}
+    pipes <- sequence {- bracketV automatically detaches from vim -}
               [queryDefault "g:radiation_c_cc" "cc",
                 queryDefault "g:radiation_c_flags" "",
                 pure "-E", pure filename] >>= runCommand

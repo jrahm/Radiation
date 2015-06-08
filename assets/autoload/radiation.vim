@@ -1,7 +1,11 @@
+
 let s:script_dir = expand('<sfile>:p:h')
 let s:radiation_initialized = 0
 let g:radiation_log_level = "error"
 
+" initializes the radiation script. This sets up variables
+" needed to run Radiation, as well as initializes the python
+" script.
 function! s:Initialize()
 
     if s:radiation_initialized == 0
@@ -19,41 +23,49 @@ function! s:Initialize()
 endfunction
 
 
-
+" This function sets up radiation to automatically run when
+" many different events happen. This should only really be used
+" if radiation is set to not block. This should not be a problem
+" with the new architecture of the code.
 function radiation#RadiationAuto()
 
 augroup Radiation
+    " clear everything out
     autocmd!
 
     " If we can do it async, then run
     " in the backgrout automagically
-    autocmd BufEnter *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
-    autocmd BufLeave *.c,*.cpp,*.h,*.hpp call radiation#Kill()
-    autocmd CursorHold *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
-    autocmd InsertLeave *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
-    autocmd InsertEnter *.c,*.cpp,*.h,*.hpp call radiation#SourceAndRun()
+    autocmd BufEnter    * call radiation#SourceAndRun()
+    autocmd BufLeave    * call radiation#Kill()
+    autocmd CursorHold  * call radiation#SourceAndRun()
+    autocmd InsertLeave * call radiation#SourceAndRun()
+    autocmd InsertEnter * call radiation#SourceAndRun()
 
 augroup END
 
 endfunction
 
+" The opposite of the above. Radiation will still try to source
+" the file if it can, but no new instances of radiation will be
+" spawned unless the user uses the Radiation command.
 function radiation#RadiationNoAuto()
 
 augroup Radiation
     autocmd!
-    autocmd BufEnter *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
-    autocmd CursorHold *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
-    autocmd InsertLeave *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
-    autocmd InsertEnter *.c,*.cpp,*.h,*.hpp call radiation#TrySource()
+    autocmd BufEnter    * call radiation#TrySource()
+    autocmd CursorHold  * call radiation#TrySource()
+    autocmd InsertLeave * call radiation#TrySource()
+    autocmd InsertEnter * call radiation#TrySource()
 augroup END
 
 endfunction
 
+" Invoke Radiation! Calls into the python which will spawn the haskell
+" code.
 function! radiation#Radiate()
     " Call the python function
     " to radiate the file with the filetype
-    let g:radiation_running=1
-	exec printf('python radiate( "%s", "%s", "%s" )', expand("%"), &filetype, "" )
+	exec printf('python radiate("%s", "%s")', expand("%"), &filetype)
 
     redraw!
 
@@ -69,34 +81,16 @@ endfunction
 " This is useful for cases where 
 function! radiation#Kill()
     python kill_running()
-    let g:radiation_running=0
     redraw!
 endfunction
 
 function! radiation#TrySource()
-    if exists('v:servername') && v:servername != ""
-        let filename = '/tmp/radiationx.'.v:servername.'.vim'
-    else
-        " TODO change the name of this file
-        let filename = '/tmp/radiationx.vim'
-    endif
-    if filereadable(filename)
-        " check to see if the file to source exists.
-        " source and delete
-        exec 'source '.filename
-        call delete(filename)
-        let g:radiation_running=0
-    endif
+    exec printf('python radiation_source("%s")', expand("%"))   
 endfunction
-
-let g:radiation_running=0
 
 function! radiation#SourceAndRun()
     call radiation#TrySource()
-
-    if g:radiation_running == 0
-        call radiation#Radiate()
-    endif
+    call radiation#Radiate()
 endfunction
 
 call s:Initialize()
