@@ -65,7 +65,7 @@ def radiate(filename, filetype):
 
     argv = [radiation_binary, filename, filetype] + new_args
     debug("argv: %s" % argv)
-    g_running_process = subprocess.Popen(argv)
+    g_running_process = subprocess.Popen(argv, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT)
     debug("detach process")
 
     # close_log()
