@@ -1,7 +1,10 @@
+{-# LANGUAGE CPP #-}
 module My.Utils where
 
 import Control.Applicative
 import Data.Foldable (forM_,Foldable)
+
+import System.Environment
 
 ($>) :: Functor f => f b -> a -> f a
 ($>) = flip (<$)
@@ -12,3 +15,11 @@ import Data.Foldable (forM_,Foldable)
 
 (?>>) :: (Foldable f, Monad m) => (a -> m b) -> f a -> m ()
 (?>>) = flip (<<?)
+
+tempFolder :: IO FilePath
+tempFolder = 
+#ifdef mingw32_HOST_OS
+    getEnv "TEMP"
+#else
+    return "/tmp"
+#endif

@@ -29,6 +29,7 @@ import System.IO
 import System.Environment
 
 
+import Debug.Trace
 import System.FilePath ((</>))
 
 import qualified Data.ByteString as BS
@@ -176,7 +177,7 @@ getLogLevel = VimM $ \dp vd@(VimData lh cache combuf ll) ->
 
 nullFile :: IO Handle
 nullFile =
-#ifdef mingw32_OS_HOST
+#ifdef mingw32_HOST_OS
     openFile "NUL" WriteMode
 #else
     openFile "/dev/null" WriteMode
@@ -190,16 +191,11 @@ openLogFile file ll = VimM $ \_ (VimData _ a b c) -> do
     fileh <- catchError (openFile file WriteMode) (const nullFile)
     return (VimData (Just (fileh,ll)) a b c, ())
 
-tempFolder :: FilePath
-tempFolder = 
-#ifdef mingw32_OS_HOST
-    "C:\\Windows\\Temp"
-#else
-    "/tmp"
-#endif
 
 openLogFilePortable :: FilePath -> LogLevel -> VimM ()
-openLogFilePortable file = openLogFile (tempFolder </> file)
+openLogFilePortable file ll = do
+    temp <- liftIO tempFolder
+    openLogFile (temp </> file) ll
 
 setLogLevel :: LogLevel -> VimM ()
 setLogLevel ll = VimM $ \_ (VimData m a b c) ->
@@ -337,7 +333,9 @@ openSocketDataPipe input output = DataPipe {
 } where tos str = if not $ null str then Just $ tail str else Nothing
 
 withFilePortable :: FilePath -> IOMode -> (Handle -> IO ()) -> IO ()
-withFilePortable path = withFile (tempFolder </> path)
+withFilePortable path mode fn = do
+    folder <- (</>path) <$> tempFolder
+    withFile folder mode fn
 
 
 runExpression' :: VimServerAddress -> String -> IO String

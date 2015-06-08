@@ -7,6 +7,7 @@ import Control.Monad
 
 import System.Exit
 import System.IO
+import System.FilePath
 
 import qualified Data.Map as Map
 import Radiation.Parsers
@@ -18,7 +19,6 @@ import qualified Radiation.Parsers.Test as Test
 import qualified Radiation.Parsers.CPP as CPP
 
 import qualified Radiation.Parsers.C as C
-import qualified Radiation.Parsers.Python as Python
 
 import My.Utils
 
@@ -26,7 +26,6 @@ availableParsers :: Map.Map String Parser
 availableParsers = Map.fromList
     [  ("test",Test.parser)
      , ("c", C.parser)
-     , ("python", Python.parser)
      , ("cpp", CPP.parser)
      ]
 
@@ -46,14 +45,9 @@ runWithDataPipe logh file typ pipe =
     void $ runVimM pipe (fromJust test)
 
 withLogFile :: (Handle -> IO ()) -> IO ()
-withLogFile fn =
-#ifdef mingw32_HOST_OS
-    let filename = "C:\\Windows\\Temp\\radiation.log"
-#else
-    let filename = "/tmp/radiation.log"
-#endif
-        in
-        withFile filename WriteMode fn
+withLogFile fn = do
+    filename <- (</>"radiation.log") <$> tempFolder
+    withFile filename WriteMode fn
 
 main :: IO ()
 main = withLogFile $ \flog ->

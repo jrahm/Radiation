@@ -98,6 +98,11 @@ parseCPP =
          addJust Nothing = id
          addJust (Just x) = (x:)
 
+{- Remove any matches that have a not alphanumeric character in them. This
+ - is to prevent issues with symbols appearing in the vim output -}
+eraseNonNum :: Set.Set BS.ByteString -> Set.Set BS.ByteString
+eraseNonNum = Set.filter (BSC.all isAlphaNum)
+
 parser :: R.Parser
 parser = R.Parser $ \filename -> do
     openLogFilePortable "cpp_radiation.log" Debug
@@ -110,5 +115,5 @@ parser = R.Parser $ \filename -> do
          pure "-E", pure filename]
     
     reportErrors pipes $
-        withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP)
+        withParsingMap (Map.map ((Set.\\blacklist) . eraseNonNum) <$> parseCPP)
             <=< vGetHandleContents
