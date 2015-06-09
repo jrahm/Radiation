@@ -37,10 +37,14 @@ def close_log():
         radiation_pydebug.close()
         radiation_pydebug = None
 
-def radiate(filename, filetype):
+def radiate(filetype):
     global g_running_process
 
+    # get the filename
+    filename = vim.eval("expand('%')")
+
     open_log()
+    debug("radiate: %s" % filename)
 
     radiation_source(filename, True) # source the cached version if it exists
 
@@ -50,7 +54,7 @@ def radiate(filename, filetype):
     # what the background process will need to complete the radiation
     argv = [radiation_binary, filename, filetype, "--requires"]
     debug("argv: %s" % argv)
-    proc = subprocess.Popen(argv, stdout=subprocess.PIPE)
+    proc = subprocess.Popen(argv, stdout=subprocess.PIPE, creationflags=subprocess.SW_HIDE, shell=True)
 
     stout = proc.stdout
     needed_vars = stout.readlines()
@@ -65,7 +69,7 @@ def radiate(filename, filetype):
 
     argv = [radiation_binary, filename, filetype] + new_args
     debug("argv: %s" % argv)
-    g_running_process = subprocess.Popen(argv, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT)
+    g_running_process = subprocess.Popen(argv, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT, creationflags=subprocess.SW_HIDE, shell=True)
     debug("detach process")
 
     # close_log()
@@ -82,7 +86,9 @@ def kill_running():
 
     # close_log()
 
-def radiation_source(filename, is_cache=False):
+def radiation_source(filename=None, is_cache=False):
+    if not filename:
+        filename = vim.eval("expand('%')")
     hashm = hashlib.md5()
     hashm.update(filename)
     hashname = hashm.hexdigest()
@@ -98,4 +104,7 @@ def radiation_source(filename, is_cache=False):
         vim.command("source " + newfilename)
         if not is_cache:
             # move the sourced file to the cached file
-            os.rename(newfilename, newfilename + ".cache")
+            cachepath = newfilename + ".cache"
+            if os.path.exists(cachepath):
+                os.remove(cachepath)
+            os.rename(newfilename, cachepath)

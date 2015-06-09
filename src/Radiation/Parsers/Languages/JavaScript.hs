@@ -2,7 +2,7 @@
 
 module Radiation.Parsers.Languages.JavaScript(parser) where
 
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), (<$>))
 import Control.Monad
 import Data.Attoparsec.ByteString.Char8 (string, Parser, parseOnly, many1, anyChar)
 import Data.ByteString as BS (ByteString, readFile)

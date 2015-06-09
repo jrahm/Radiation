@@ -5,6 +5,7 @@ module Radiation.Parsers (runParser, highlight, Parser(..)) where
 import Vim (Variable, VimM(..), vlog, post, LogLevel(..))
 
 import Control.Monad (unless)
+import Data.Monoid (mconcat, mappend)
 import Data.Char (isAlphaNum)
 
 import My.Utils ((+>+))

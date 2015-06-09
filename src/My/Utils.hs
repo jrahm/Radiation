@@ -1,7 +1,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module My.Utils where
 
-import Data.Foldable (forM_)
+import Data.Foldable (forM_, Foldable)
+import Control.Applicative ((<$))
+import Data.Monoid (Monoid, mappend)
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 (pack)
 import Data.Convertible

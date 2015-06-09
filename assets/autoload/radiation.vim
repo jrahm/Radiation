@@ -65,9 +65,7 @@ endfunction
 function! radiation#Radiate()
     " Call the python function
     " to radiate the file with the filetype
-	exec printf('python radiate("%s", "%s")', expand("%"), &filetype)
-
-    redraw!
+	exec printf('python radiate("%s")', &filetype)
 
 endfunction
 
@@ -85,7 +83,7 @@ function! radiation#Kill()
 endfunction
 
 function! radiation#TrySource()
-    exec printf('python radiation_source("%s")', expand("%"))   
+    exec 'python radiation_source()'
 endfunction
 
 function! radiation#SourceAndRun()

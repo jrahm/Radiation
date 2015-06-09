@@ -23,6 +23,7 @@ import Control.Exception
 import Control.Monad hiding (forM_)
 import Control.Monad.Error.Class
 import Control.Monad.IO.Class
+import Data.Monoid (mappend, mconcat)
 import Data.ByteString (ByteString)
 import Data.Char
 
@@ -99,8 +100,11 @@ data VimData = VimData {
 }
 
 dumpCommands :: FilePath -> VimData -> IO ()
-dumpCommands fp vd =
-    withFilePortable (printf "radiation_%s_x.vim" $ md5s $ Str fp) WriteMode $
+dumpCommands fp vd = do
+    tmpdir <- tempFolder
+    let filename = tmpdir </> (printf "radiation_%s_x.vim" $ md5s $ Str fp) 
+    putStrLn $ "\" Writing commands to the file: " ++ filename
+    withFilePortable filename WriteMode $
         flip BS.hPutStr (mconcat [commandBuffer vd, "\nredraw!"])
     
 
@@ -165,7 +169,7 @@ openLogFile file ll = VimM $ \_ (VimData _ a b c) -> do
 
 tempFolder :: IO FilePath
 tempFolder = 
-#ifdef mingw32_OS_HOST
+#ifdef mingw32_HOST_OS
     (</>"radiation/") <$> getEnv "TEMP"
 #else
     ("/tmp/radiation"</>) <$> getEnv "USER"

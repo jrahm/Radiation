@@ -3,7 +3,7 @@
 
 module Radiation.Parsers.Languages.CPP(parser) where
 
-import Control.Applicative ((<$>), (<|>), many)
+import Control.Applicative ((<$>), (<|>), many, (<*), pure)
 import Control.Monad
 import Data.Attoparsec.ByteString.Char8 as BP
 import Data.Char (isAlphaNum, isDigit, isAlpha)
