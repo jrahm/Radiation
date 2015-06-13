@@ -65,6 +65,7 @@ function RadiationNoAuto()
 
 augroup Radiation
     autocmd!
+    autocmd BufRead     * call radiation#Radiate()
     autocmd BufEnter    * call radiation#TrySource()
     autocmd CursorHold  * call radiation#TrySource()
     autocmd InsertLeave * call radiation#TrySource()
