@@ -34,12 +34,13 @@ typMap = Map.fromList [
         ("enum","RadiationCppEnum")]
 
 data CPPConfig = CPPConfig {
-    configIncludeMemberFunctions :: Bool
+    _configIncludeMemberFunctions :: Bool,
+    _configIncludeFunctions :: Bool
 }
 
 {- Parser the C++ file. Look for classes, typedefs and namespaces -}
 parseCPP :: CPPConfig -> Parser (Map.Map String (Set.Set BS.ByteString))
-parseCPP (CPPConfig parseMembers) = 
+parseCPP (CPPConfig parseMembers parseFunctions) = 
     let
         maybeP parser = (Just <$> parser) <|> return Nothing
         word = skipSpace >> BP.takeWhile sat <* skipSpace
@@ -58,6 +59,10 @@ parseCPP (CPPConfig parseMembers) =
                                 _parens <- spaced balancedParens
                                 return [("RadiationCppMemberFunction", name)]
                 concat <$> many (memberFn <|> one)
+
+        function :: Parser ByteString
+        function | parseFunctions = spaced cppType >> identifier <* spaced balancedParens
+                 | otherwise = fail ""
 
 
         parseClass :: Parser [(String, ByteString)]
@@ -92,7 +97,7 @@ parseCPP (CPPConfig parseMembers) =
         {- Parse a single element. Either a class, sturct or union. -}
         parseElement :: Parser [(String, ByteString)]
         parseElement =
-            parseTemplate <|> parseClass <|>
+            parseTemplate <|> parseClass <|> fmap return (("RadiationCppFunction",) <$> function) <|>
             (fmap return $ string "struct"      >> maybeP (spaced attribute) >> ("RadiationCppStruct",)    <$> word) <|>
             (fmap return $ string "union"       >> maybeP (spaced attribute) >> ("RadiationCppUnion",)     <$> word) <|>
             (fmap return $ string "enum"        >> maybeP (spaced attribute) >> ("RadiationCppEnum",)      <$> word) <|>
@@ -117,14 +122,18 @@ parseCPP (CPPConfig parseMembers) =
         (map_fromList2 . concat) <$> many one
 
 parser :: R.Parser
-parser = R.Parser "cpp" (const ["g:radiation_parse_members",    
+parser = R.Parser "cpp" (const ["g:radiation_cpp_parse_members",    
+                                "g:radiation_cpp_parse_functions",
                                 "g:radiation_cpp_cc",
                                 "g:radiation_cpp_flags"])
     $ \filename -> do
         log Info "Start cpp parser"
     
         forM_ (map snd $ Map.toList typMap) $ flip R.hiLink "Type"
-        R.hiLink "RadiationCppMemberFunction"    "Function"
+        R.hiLink "RadiationCFunction"            "Function"
+        R.hiLink "RadiationCppFunction"          "RadiationCFunction"
+        R.hiLink "RadiationCppMemberFunction"    "RadiationCppFunction"
+
         R.hiLink "RadiationCppTemplateClass"     "Type"
         R.hiLink "RadiationCppTemplateTypename"  "Type"
     
@@ -134,7 +143,8 @@ parser = R.Parser "cpp" (const ["g:radiation_parse_members",
              queryDefault "g:radiation_cpp_flags" "",
              pure "-E", pure filename]
         
-        config <- CPPConfig <$> ((=="1") <$> queryDefault "g:radiation_parse_members" "1")
+        config <- CPPConfig <$> ((=="1") <$> queryDefault "g:radiation_cpp_parse_members" "1") <*>
+                                ((=="1") <$> queryDefault "g:radiation_cpp_parse_functions" "1")
         reportErrors pipes $
             withParsingMap (Map.map (Set.\\reservedWords) <$> parseCPP config)
                 <=< vGetHandleContents
