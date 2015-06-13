@@ -54,8 +54,8 @@ data CPPConfig = CPPConfig {
 }
 
 {- Parser the C++ file. Look for classes, typedefs and namespaces -}
-parseCPP :: Parser (Map.Map String (Set.Set BS.ByteString))
-parseCPP = 
+parseCPP :: CPPConfig -> Parser (Map.Map String (Set.Set BS.ByteString))
+parseCPP (CPPConfig parseMembers) = 
     let
         maybeP parser = (Just <$> parser) <|> return Nothing
         word = skipSpace >> BP.takeWhile sat <* skipSpace
@@ -131,6 +131,7 @@ parser = R.Parser "cpp" (const ["g:radiation_parse_members",
              queryDefault "g:radiation_cpp_flags" "",
              pure "-E", pure filename]
         
+        config <- CPPConfig <$> ((=="1") <$> queryDefault "g:radiation_parse_members" "1")
         reportErrors pipes $
-            withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP)
+            withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP config)
                 <=< vGetHandleContents
