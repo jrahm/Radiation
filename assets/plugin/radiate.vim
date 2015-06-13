@@ -10,6 +10,8 @@ command! RadiationOpen call radiation#Open()
 command! RadiationDelete call radiation#Remove()
 command! RadiationClean call radiation#Clean() 
 
+command! RadiationOpenLog call radiation#OpenLog()
+
 function TryHighlight(name, cterm)
     if ! hlexists(a:name)
         exe 'highlight '.a:name.' ctermfg='.a:cterm

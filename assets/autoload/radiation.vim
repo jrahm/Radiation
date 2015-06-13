@@ -103,4 +103,8 @@ function! radiation#Clean()
     python radiation_clean()
 endfunction
 
+function! radiation#OpenLog()
+    python radiation_open_log()
+endfunction
+
 call s:Initialize()

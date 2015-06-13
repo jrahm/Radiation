@@ -157,6 +157,11 @@ def radiation_remove_synfile(filename=None):
 def radiation_clean():
     shutil.rmtree(TEMP)
 
+def radiation_open_log():
+    filetype = vim.eval("&filetype")
+    vim.command("e %s/radiation_%s.log" % (TEMP, filetype))
+    
+
 def radiation_calculate_filename(basename):
     hashm = hashlib.md5()
     hashm.update(basename)

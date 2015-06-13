@@ -40,7 +40,7 @@ data Parser = Parser {
 
 {- Take a parser and run it on the file passed to it. -}
 runParser :: FilePath -> Parser -> VimM () 
-runParser str (Parser typ _ func) = openLogFilePortable ("radiation_"++typ++".log") Debug >> func str
+runParser str (Parser _ _ func) = func str
 
 isIdentifier :: ByteString -> Bool
 isIdentifier bs = not (BSC.null bs) && (BSC.all $ \c -> isAlphaNum c || c == '_') bs

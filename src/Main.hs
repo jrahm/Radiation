@@ -57,7 +57,9 @@ main = do
                 let arguments' = map (break (=='=')) arguments
                     argmap = fromList (map (second tail) arguments')
                     in do
-                (Parser _ _ fn) <- Registry.lookupIO typ
-                runVimM argmap file fn
+                (Parser typ _ fn) <- Registry.lookupIO typ
+                runVimM argmap file $ \fp -> do
+                    openLogFilePortable ("radiation_"++typ++".log") Debug
+                    fn fp
 
             _ -> putStrLn "Error parsing command line parameters" >> printHelp

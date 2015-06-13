@@ -177,7 +177,8 @@ nullFile =
  - this file -}
 openLogFile :: FilePath -> LogLevel -> VimM ()
 openLogFile file ll = VimM $ \_ (VimData _ a b c) -> do
-    fileh <- catchError (openFile file WriteMode) (const nullFile)
+    putStrLn $ "\" Opening log file: " ++ file
+    fileh <- catchError (openFile file WriteMode) (\e -> putStrLn ("Error opening log file: "++show e) >> nullFile)
     return (VimData (Just (fileh,ll)) a b c, ())
 
 tempFolder :: IO FilePath
