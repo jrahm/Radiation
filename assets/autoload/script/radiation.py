@@ -59,9 +59,11 @@ def runprocess(argv, capture_stdout):
 
 def radiate(filetype):
     global g_running_process
+    global RADIATION_DEBUG
 
     # get the filename
     filename = vim.eval("expand('%')")
+    RADIATION_DEBUG = int(get_default("g:radiation_pydebug", "0"));
 
     open_log()
     debug("radiate: %s" % filename)
