@@ -52,8 +52,8 @@ between :: Char -> Char -> Parser BS.ByteString
 between open close = skipSpace *> char open *> (between open close <|> BP.takeWhile sat) <* char close
     where sat ch = ch /= open && ch /= close
 
-balancedParens :: Parser BS.ByteString
-balancedParens =
+balanced :: Char -> Char -> Parser BS.ByteString
+balanced c1 c2 = 
     let
         looseBalanced :: BS.ByteString -> Int -> Parser BS.ByteString
         looseBalanced cur 0 = return cur
@@ -61,15 +61,18 @@ balancedParens =
             ch <- BP.anyChar
             let cur' = cur `BS.append` BSC.singleton ch
             case ch of 
-                '(' -> looseBalanced cur' (n + 1)
-                ')' -> looseBalanced cur' (n - 1)
+                c1 -> looseBalanced cur' (n + 1)
+                c2 -> looseBalanced cur' (n - 1)
                 _ ->   looseBalanced cur' n
         in
 
-    BP.char '(' >> looseBalanced (BSC.singleton '(') 1
+    BP.char c1 >> looseBalanced (BSC.singleton c1) 1
+
+balancedParens :: Parser BS.ByteString
+balancedParens = balanced '(' ')'
 
 body :: Parser BS.ByteString
-body = between '{' '}'
+body = balanced '{' '}'
 
 parens :: Parser BS.ByteString
 parens = between '(' ')' 
