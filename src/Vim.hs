@@ -14,6 +14,7 @@ module Vim(
     , openLogFilePortable
     , setLogLevel, tempFolder
     , LogLevel(..), Variable
+    , c
 )
 where
     
@@ -273,6 +274,9 @@ error = log Error . BSC.pack
 
 fatal :: String -> VimM ()
 fatal = log Fatal . BSC.pack
+
+c :: ByteString -> VimM()
+c = post . ("\" "+>+)
 
 {- No data yet -}
 emptyData :: VimData

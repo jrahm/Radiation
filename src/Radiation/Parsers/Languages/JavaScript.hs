@@ -49,6 +49,9 @@ parser = R.Parser (const ["g:radiation_javascript_includes"]) $ \filename -> do
     openLogFilePortable "js_radiation.log" Debug
     logs Info "Start JavaScript parser"
 
+    c "JavaScript Parser for Radiation"
+    c "@Author Josh Rahm (joshuarahm@gmail.com)"
+
     hiLink "RadiationJavaScriptVar" "Identifier"
     hiLink "RadiationJavaScriptFunction" "Function"
 
