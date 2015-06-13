@@ -10,8 +10,10 @@ g_running_process = None
 
 if platform.system() == "Windows":
     TEMP = os.path.join(os.getenv("TEMP"), "radiation")
+    g_windows = True
 else:
     TEMP = os.path.join("/tmp", "radiation", os.getenv("USER"))
+    g_windows = False
 
 def debug(string):
     if radiation_pydebug:
@@ -37,6 +39,23 @@ def close_log():
         radiation_pydebug.close()
         radiation_pydebug = None
 
+def runprocess(argv, capture_stdout):
+    proc = None
+    if g_windows:
+        if capture_stdout:
+            proc = subprocess.Popen(argv, stdout=subprocess.PIPE, creationflags=subprocess.SW_HIDE, stderr=open(os.devnull), shell=True)
+        else:
+            proc = subprocess.Popen(argv, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT, creationflags=subprocess.SW_HIDE, shell=True)
+    else:
+        if capture_stdout:
+            proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=open(os.devnull))
+        else:
+            proc = subprocess.Popen(argv, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT)
+            
+    return proc
+
+        
+
 def radiate(filetype):
     global g_running_process
 
@@ -54,7 +73,7 @@ def radiate(filetype):
     # what the background process will need to complete the radiation
     argv = [radiation_binary, filename, filetype, "--requires"]
     debug("argv: %s" % argv)
-    proc = subprocess.Popen(argv, stdout=subprocess.PIPE, creationflags=subprocess.SW_HIDE, shell=True)
+    proc = runprocess(argv, True);
 
     stout = proc.stdout
     needed_vars = stout.readlines()
@@ -69,7 +88,7 @@ def radiate(filetype):
 
     argv = [radiation_binary, filename, filetype] + new_args
     debug("argv: %s" % argv)
-    g_running_process = subprocess.Popen(argv, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT, creationflags=subprocess.SW_HIDE, shell=True)
+    g_running_process = runprocess(argv, False)
     debug("detach process")
 
     # close_log()

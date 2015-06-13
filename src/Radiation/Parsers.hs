@@ -10,7 +10,7 @@ import Data.Char (isAlphaNum)
 
 import My.Utils ((+>+))
 import Data.ByteString as BS (ByteString)
-import Data.ByteString.Char8 as BSC (all, putStrLn)
+import Data.ByteString.Char8 as BSC (all, null, putStrLn, pack)
 
 import Data.Convertible (Convertible, convert)
 import Data.List (intersperse)
@@ -33,15 +33,19 @@ data Parser = Parser {
 runParser :: FilePath -> Parser -> VimM () 
 runParser str (Parser _ func) = func str
 
+isIdentifier :: ByteString -> Bool
+isIdentifier bs = not (BSC.null bs) && (BSC.all $ \c -> isAlphaNum c || c == '_') bs
+
 highlight :: (Convertible a ByteString, Convertible b ByteString) => a -> [b] -> VimM ()
 highlight high word' =
     let highlight' highlighting words = 
-            let word = filter (BSC.all $ \c -> isAlphaNum c || c == '_') words
+            let word = filter isIdentifier words
                 wordbs = mconcat $ intersperse " "  word
                 in do
 
             liftIO $ BSC.putStrLn $ "\" " +>+ highlighting +>+ " " +>+ wordbs
-            unless (null word) $ do
+            liftIO $ BSC.putStrLn $ "\" word=" +>+ BSC.pack (show word)
+            unless (Prelude.null word) $ do
                 let command = "syn keyword " +>+ highlighting +>+ " " +>+ wordbs 
                 vlog Debug $ "[RunningCommand]: " +>+ command
                 liftIO $ BSC.putStrLn command
