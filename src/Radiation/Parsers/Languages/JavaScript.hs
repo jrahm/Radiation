@@ -1,29 +1,43 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 module Radiation.Parsers.Languages.JavaScript(parser) where
 
 import Control.Applicative ((<|>), (<$>))
 import Control.Monad
-import Data.Attoparsec.ByteString.Char8 (string, Parser, parseOnly, many1, anyChar)
-import Data.ByteString as BS (ByteString, readFile)
+import Data.Attoparsec.ByteString.Char8 (string, Parser, parseOnly, many1, anyChar, skipSpace)
+import Data.ByteString as BS (ByteString)
+import Data.ByteString.Lazy as BSL (readFile)
 import Control.Monad.IO.Class
 
-import Radiation.Parsers.Internal.CStyle (identifier, notIdentifier)
+import Radiation.Parsers.Internal.CStyle (identifier, notIdentifier, body)
+import Radiation.Parsers.Internal.WithAttoparsec (withParsingMap)
 import Vim
 import qualified Radiation.Parsers as R
 
 import My.Utils
 import Data.Maybe (catMaybes)
+import Data.Map (Map)
+import Data.Set (Set)
 
 import Control.Monad.State.Lazy
 
-parseJavaScript :: Parser (VimM ())
-parseJavaScript =
-    let parseFunction = string "function" >> identifier
+parseJavaScript :: Parser (Map String (Set ByteString))
+parseJavaScript = 
+    let parseElement :: Parser (String, ByteString)
+        parseElement =
+            (string "function" >> ("RadiationJavaScriptFunction",) <$> identifier <* body) <|>
+            (string "var" >> ("RadiationJavaScriptVar",) <$> identifier)
+
         nextToken = identifier <|> notIdentifier
+
+        one = (return <$> parseElement) <|>
+              (nextToken >> skipSpace $> []) <|>
+              (anyChar $> [])
+              
         in
-        fmap (R.highlight ("RadiationJavaScriptFunction"::ByteString)) $
-            catMaybes <$> many1 ((Just <$> parseFunction) <|> (anyChar $> Nothing))
+
+        (map_fromList2 . concat) <$> many1 one
 
 
 runParser :: Parser (VimM()) -> ByteString -> VimM()
@@ -37,4 +51,4 @@ parser = R.Parser (const ["g:radiation_javascript_includes"]) $ \filename -> do
     openLogFilePortable "js_radiation.log" Debug
     logs Info "Start JavaScript parser"
 
-    runParser parseJavaScript =<< liftIO (BS.readFile filename)
+    withParsingMap parseJavaScript =<< liftIO (BSL.readFile filename)
