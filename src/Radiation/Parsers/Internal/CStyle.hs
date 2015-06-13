@@ -68,8 +68,9 @@ balanced c1 c2 =
         looseBalanced :: BS.ByteString -> Int -> Parser BS.ByteString
         looseBalanced cur 0 = return cur
         looseBalanced cur n = do
-            ch <- BP.anyChar
-            let cur' = cur `BS.append` BSC.singleton ch
+            rest <- BP.takeWhile1 (\ch -> ch /= c1 && ch /= c2)
+            ch <- char c1 <|> char c2
+            let cur' = cur `mappend` rest `mappend` BSC.singleton ch
             case () of 
                 () | ch == c1  -> looseBalanced cur' (n + 1)
                    | ch == c2  -> looseBalanced cur' (n - 1)
