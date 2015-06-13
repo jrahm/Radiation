@@ -5,7 +5,7 @@ import platform
 import os
 import shutil
 
-RADIATION_DEBUG = 1
+RADIATION_DEBUG = 0
 radiation_pydebug = None
 g_running_process = None
 
