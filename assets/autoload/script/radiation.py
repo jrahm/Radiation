@@ -3,6 +3,7 @@ import hashlib
 import subprocess
 import platform
 import os
+import shutil
 
 RADIATION_DEBUG = 1
 radiation_pydebug = None
@@ -138,6 +139,23 @@ def radiation_open_vimfile(filename=None):
             vim.command("e " + fnname)
         else:
             vim.command("echoerr 'No such file!'")
+
+def radiation_remove_synfile(filename=None):
+    if not filename:
+        filename = vim.eval("expand('%')")
+    fnname = radiation_calculate_filename(filename)
+    try:
+        os.remove(fnname)
+    except OSError:
+        pass
+
+    try:
+        os.remove(fnname + ".cache")
+    except OSError:
+        pass
+
+def radiation_clean():
+    shutil.rmtree(TEMP)
 
 def radiation_calculate_filename(basename):
     hashm = hashlib.md5()

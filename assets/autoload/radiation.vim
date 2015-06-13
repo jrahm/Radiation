@@ -95,4 +95,12 @@ function! radiation#Open()
     python radiation_open_vimfile()
 endfunction
 
+function! radiation#Remove()
+    python radiation_remove_synfile()
+endfunction
+
+function! radiation#Clean()
+    python radiation_clean()
+endfunction
+
 call s:Initialize()

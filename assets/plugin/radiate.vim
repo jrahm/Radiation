@@ -7,6 +7,7 @@ command! RadiationNoAuto call RadiationNoAuto()
 command! RadiationSource call radiation#TrySource()
 
 command! RadiationOpen call radiation#Open()
+command! RadiationDelete call radiation#Remove()
 
 function TryHighlight(name, cterm)
     if ! hlexists(a:name)
