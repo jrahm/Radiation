@@ -14,7 +14,7 @@ import Data.ByteString.Char8 as BS (readFile, lines, ByteString)
 {- Very basic test parser. Reads data from crack lib and highlights
  - all the words from it -}
 parser :: Parser
-parser = Parser (const []) $ \_ -> do
+parser = Parser "test" (const []) $ \_ -> do
     openLogFilePortable "test_radiation.log" Debug
 
     logs Info "Start test parser"

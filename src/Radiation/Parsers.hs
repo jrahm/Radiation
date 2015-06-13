@@ -8,7 +8,7 @@ module Radiation.Parsers (
     syn, Keyword(..), SynArg(..),
     Link(..), HiArg(..), hi, hiLink) where
 
-import Vim (Variable, VimM(..), vlog, post, LogLevel(..))
+import Vim (Variable, VimM(..), vlog, post, LogLevel(..), openLogFilePortable)
 
 import Control.Monad (unless)
 import Data.Monoid (mconcat, mappend)
@@ -26,10 +26,13 @@ import Control.Monad.IO.Class (liftIO)
  - of the variables it requires to complete. Second is
  - the function that actually radiates the file -}
 data Parser = Parser {
+    {- The filetype this parser works on -}
+      _fttype :: String
+
     {- Get the dependencies for the the file to be run.
      - This means return the list of variables a parser
      - needs to complete. -}
-      _dependencies :: FilePath -> [Variable]
+    , _dependencies :: FilePath -> [Variable]
 
     {- Run the parser and highlight all the commands -}
     , _highlight :: FilePath -> VimM ()
@@ -37,7 +40,7 @@ data Parser = Parser {
 
 {- Take a parser and run it on the file passed to it. -}
 runParser :: FilePath -> Parser -> VimM () 
-runParser str (Parser _ func) = func str
+runParser str (Parser typ _ func) = openLogFilePortable ("radiation_"++typ++".log") Debug >> func str
 
 isIdentifier :: ByteString -> Bool
 isIdentifier bs = not (BSC.null bs) && (BSC.all $ \c -> isAlphaNum c || c == '_') bs

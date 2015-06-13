@@ -8,6 +8,7 @@ command! RadiationSource call radiation#TrySource()
 
 command! RadiationOpen call radiation#Open()
 command! RadiationDelete call radiation#Remove()
+command! RadiationClean call radiation#Clean() 
 
 function TryHighlight(name, cterm)
     if ! hlexists(a:name)

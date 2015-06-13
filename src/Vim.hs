@@ -1,9 +1,21 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE CPP #-} {- The module which contains the Vim monad. This monad
- - is a state monad which handles the connection
- - to the Vim client -}
+{-# LANGUAGE CPP #-}
+
+{- 
+ - This module contains the Vim monad. This monad
+ - handles most everything dealing with vim. Originally
+ - designed as a client-server architecture, it has changed
+ - to become more of a take and run architecture.
+ -
+ - Either way, the Vim monad is able to post commands,
+ - query for vim variables, log to the logs among other
+ - things.
+ -
+ - @author Josh Rahm (joshuarahm@gmail.com)
+ -
+ -}
 module Vim(
       VimM(..)
     , runVimM, query, log, logs
@@ -106,7 +118,7 @@ dumpCommands fp vd = do
     let filename = tmpdir </> (printf "radiation_%s_x.vim" $ md5s $ Str fp) 
     putStrLn $ "\" Writing commands to the file: " ++ filename
     withFilePortable filename WriteMode $
-        flip BS.hPutStr (mconcat [commandBuffer vd, "\nredraw!"])
+        flip BS.hPutStr (commandBuffer vd)
     
 
 {- The vim state monad. The central function is the ability to take a
@@ -276,7 +288,8 @@ fatal :: String -> VimM ()
 fatal = log Fatal . BSC.pack
 
 c :: ByteString -> VimM()
-c = post . ("\" "+>+)
+c str | BS.null str = post (""::ByteString)
+      | otherwise   = post $ "\" " +>+ str
 
 {- No data yet -}
 emptyData :: VimData

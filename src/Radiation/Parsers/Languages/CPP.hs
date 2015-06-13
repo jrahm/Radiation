@@ -81,8 +81,7 @@ parseCPP =
         (map_fromList2 . concat) <$> many one
 
 parser :: R.Parser
-parser = R.Parser (const ["g:radiation_cpp_cc", "g:radiation_cpp_flags"]) $ \filename -> do
-    openLogFilePortable "cpp_radiation.log" Debug
+parser = R.Parser "cpp" (const ["g:radiation_cpp_cc", "g:radiation_cpp_flags"]) $ \filename -> do
     log Info "Start cpp parser"
 
     forM_ (map snd $ Map.toList typMap) $ flip R.hiLink "Type"

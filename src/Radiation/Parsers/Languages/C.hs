@@ -104,8 +104,7 @@ parseC = let
          addJust (Just x) = (x:)
 
 parser :: R.Parser
-parser = R.Parser (const ["g:radiation_c_cc", "g:radiation_c_flags"]) $ \filename -> do
-    openLogFilePortable "c_radiation.log" Debug
+parser = R.Parser "c" (const ["g:radiation_c_cc", "g:radiation_c_flags"]) $ \filename -> do
     vlog Info "Starting C Parser"
 
     forM_ (map snd $ Map.toList typMap) (flip R.hiLink "Type" . BSC.pack)

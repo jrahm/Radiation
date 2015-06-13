@@ -1,7 +1,7 @@
 module Radiation.Registry where
 
 import Data.Map as M (Map, fromList, lookup, toList)
-import Radiation.Parsers (Parser)
+import Radiation.Parsers (Parser(..))
 import System.IO
 import System.Exit
 
@@ -11,13 +11,11 @@ import qualified Radiation.Parsers.Languages.Test
 import qualified Radiation.Parsers.Languages.JavaScript
 
 availabiltyMap :: Map String Parser
-availabiltyMap = fromList
-    [ 
-          ("test", Radiation.Parsers.Languages.Test.parser)
-        , ("c",    Radiation.Parsers.Languages.C.parser)
-        , ("cpp",  Radiation.Parsers.Languages.CPP.parser)
-
-        , ("javascript",  Radiation.Parsers.Languages.JavaScript.parser)
+availabiltyMap = fromList $ map (\p@(Parser typ _ _) -> (typ, p)) [ 
+          Radiation.Parsers.Languages.Test.parser
+        , Radiation.Parsers.Languages.C.parser
+        , Radiation.Parsers.Languages.CPP.parser
+        , Radiation.Parsers.Languages.JavaScript.parser
     ]
 
 lookup :: String -> Maybe Parser

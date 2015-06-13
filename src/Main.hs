@@ -50,14 +50,14 @@ main = do
             [file,typ,"--requires"] -> do
                 {- The client code is attempting to figure out what
                  3a- this parser will need to complete its task -}
-                (Parser req _) <- Registry.lookupIO typ
+                (Parser _ req _) <- Registry.lookupIO typ
                 mapM_ putStrLn $ req file
             
             (file:typ:arguments) ->
                 let arguments' = map (break (=='=')) arguments
                     argmap = fromList (map (second tail) arguments')
                     in do
-                (Parser _ fn) <- Registry.lookupIO typ
+                (Parser _ _ fn) <- Registry.lookupIO typ
                 runVimM argmap file fn
 
             _ -> putStrLn "Error parsing command line parameters" >> printHelp
