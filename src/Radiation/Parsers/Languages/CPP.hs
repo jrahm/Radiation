@@ -65,7 +65,7 @@ parseCPP =
             (string "typedef"     >> maybeP (spaced attribute) >> ("RadiationCppTypedef",) <$> typedef <* trace "Made it here!" (return ()))
 
         typedef = trace "Typedef..." $ do
-            -- void (string "struct" >> skipSpace >> (body <|> (identifier >> body) <|> identifier)) <|> return ()
+            void (skipSpace >> string "struct" >> skipSpace >> (body <|> (identifier >> body) <|> identifier)) <|> return ()
             bs <- BP.takeWhile (/=';')
             trace (show (last $ BSC.words bs)) $
                 return $ last $ BSC.words bs
