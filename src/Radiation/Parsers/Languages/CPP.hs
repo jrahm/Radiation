@@ -39,7 +39,7 @@ blacklist = Set.fromList [
             "const_cast",  "inline",        "public",     "throw",             "virtual",
             "delete",      "mutable",       "protected",  "true",              "wchar_t" ]
 
-typMap :: Map.Map BS.ByteString String
+typMap :: Map.Map BS.ByteString BS.ByteString
 typMap = Map.fromList [
         ("struct","RadiationCppStruct"),
         ("union","RadiationCppUnion"),
@@ -51,7 +51,6 @@ parseCPP :: Parser (Map.Map String (Set.Set BS.ByteString))
 parseCPP = 
     let
         maybeP parser = (Just <$> parser) <|> return Nothing
-        spaced parser = skipSpace >> parser <* skipSpace
         word = skipSpace >> BP.takeWhile sat <* skipSpace
             where sat ch = isAlphaNum ch || ch == '_'
 
@@ -85,6 +84,8 @@ parser :: R.Parser
 parser = R.Parser (const ["g:radiation_cpp_cc", "g:radiation_cpp_flags"]) $ \filename -> do
     openLogFilePortable "cpp_radiation.log" Debug
     log Info "Start cpp parser"
+
+    forM_ (map snd $ Map.toList typMap) $ flip R.hiLink "Type"
 
     {- Get the utilities to parse the output -}
     pipes <- runCommand =<< sequence

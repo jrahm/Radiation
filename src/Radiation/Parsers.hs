@@ -3,7 +3,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Radiation.Parsers (runParser, highlight, Parser(..), syn, Keyword(..), SynArg(..)) where
+module Radiation.Parsers (
+    runParser, highlight, Parser(..),
+    syn, Keyword(..), SynArg(..),
+    Link(..), HiArg(..), hi, hiLink) where
 
 import Vim (Variable, VimM(..), vlog, post, LogLevel(..))
 
@@ -40,14 +43,32 @@ isIdentifier :: ByteString -> Bool
 isIdentifier bs = not (BSC.null bs) && (BSC.all $ \c -> isAlphaNum c || c == '_') bs
 
 data Keyword = Keyword
+data Link = Link
+
 class SynArg a r where
     next :: a -> r
+
+class HiArg a r where
+    hi :: a -> r
+
 instance (Convertible a ByteString, Convertible b ByteString) => 
             SynArg Keyword (a -> [b] -> VimM()) where
     next _ = highlight
 
+instance HiArg Link (ByteString -> ByteString -> VimM()) where
+    hi _ highlight link = 
+            let (highlight', link') = (convert highlight::ByteString, convert link::ByteString)
+                command = "hi def link " +>+ highlight' +>+ " " +>+ link'
+            in do
+                vlog Debug $ "[RunningCommand]: " +>+ command
+                post command
+    
+
 syn :: SynArg x r => x -> r
 syn = next
+
+hiLink :: ByteString -> ByteString -> VimM()
+hiLink = hi Link
 
 highlight :: (Convertible a ByteString, Convertible b ByteString) => a -> [b] -> VimM ()
 highlight high word' =

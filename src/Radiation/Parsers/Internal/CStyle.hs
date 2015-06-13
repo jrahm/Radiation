@@ -18,6 +18,9 @@ import My.Utils
 
 import Debug.Trace
 
+spaced :: Parser BS.ByteString -> Parser BS.ByteString
+spaced p = skipSpace *> p <* skipSpace
+
 attribute :: Parser BS.ByteString
 attribute = do
     string "__attribute__" 
@@ -40,10 +43,10 @@ subparse bsParser myParser = do
 
 {- Take an identifier from the parser -}
 identifier :: Parser BS.ByteString
-identifier = skipSpace *> BP.takeWhile isIdentifierChar <* skipSpace
+identifier = skipSpace *> BP.takeWhile1 isIdentifierChar <* skipSpace
 
 notIdentifier :: Parser BS.ByteString
-notIdentifier = skipSpace *> BP.takeWhile (\c -> not (isIdentifierChar c || isSpace c)) <* skipSpace
+notIdentifier = skipSpace *> BP.takeWhile1 (\c -> not (isIdentifierChar c || isSpace c)) <* skipSpace
 
 isIdentifierChar :: Char -> Bool
 isIdentifierChar ch = C.isDigit ch || C.isAlpha ch || ch == '_'
@@ -51,6 +54,14 @@ isIdentifierChar ch = C.isDigit ch || C.isAlpha ch || ch == '_'
 between :: Char -> Char -> Parser BS.ByteString
 between open close = skipSpace *> char open *> (between open close <|> BP.takeWhile sat) <* char close
     where sat ch = ch /= open && ch /= close
+
+nextToken :: Parser BS.ByteString
+nextToken = identifier <|> notIdentifier
+
+token :: BS.ByteString -> Parser BS.ByteString
+token str = do
+    tkn <- nextToken
+    if tkn == str then return str else fail "Could not match token"
 
 balanced :: Char -> Char -> Parser BS.ByteString
 balanced c1 c2 = 

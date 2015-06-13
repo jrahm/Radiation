@@ -108,6 +108,8 @@ parser = R.Parser (const ["g:radiation_c_cc", "g:radiation_c_flags"]) $ \filenam
     openLogFilePortable "c_radiation.log" Debug
     vlog Info "Starting C Parser"
 
+    forM_ (map snd $ Map.toList typMap) (flip R.hiLink "Type" . BSC.pack)
+
     pipes <- sequence {- bracketV automatically detaches from vim -}
               [queryDefault "g:radiation_c_cc" "cc",
                 queryDefault "g:radiation_c_flags" "",
