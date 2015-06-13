@@ -63,13 +63,13 @@ parseCPP (CPPConfig parseMembers) =
 
 
         parseClassBody :: BS.ByteString -> Parser [(String, ByteString)]
-        parseClassBody body = (subparse $ do
+        parseClassBody = subparse $ do
                 let memberFn = do
                         _type <- spaced cppType
                         name <- identifier
                         _parens <- spaced balancedParens
                         return [("RadiationCppMemberFunction", name)]
-                concat <$> many (memberFn <|> one)) (trace ("body: " ++ BSC.unpack body) body)
+                concat <$> many (memberFn <|> one)
 
 
         parseClass :: Parser [(String, ByteString)]
