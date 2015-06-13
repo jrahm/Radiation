@@ -79,13 +79,7 @@ parseCPP =
               (anyChar $> [])
         in
 
-        (fromList' . concat) <$> many one
-
-   where fromList' :: (Ord a, Ord b) => [(a,b)] -> Map.Map a (Set.Set b)
-         fromList' = foldl (\mp (k,v) ->
-            Map.insertWith Set.union k (Set.singleton v) mp) Map.empty
-         addJust Nothing = id
-         addJust (Just x) = (x:)
+        (map_fromList2 . concat) <$> many one
 
 parser :: R.Parser
 parser = R.Parser (const ["g:radiation_cpp_cc", "g:radiation_cpp_flags"]) $ \filename -> do
