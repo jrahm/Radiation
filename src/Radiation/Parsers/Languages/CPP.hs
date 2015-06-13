@@ -63,30 +63,43 @@ parseCPP (CPPConfig parseMembers) =
 
 
         parseClassBody :: BS.ByteString -> Parser [(String, ByteString)]
-        parseClassBody = subparse $ do
+        parseClassBody body = (subparse $ do
                 let memberFn = do
                         _type <- spaced cppType
                         name <- identifier
                         _parens <- spaced balancedParens
                         return [("RadiationCppMemberFunction", name)]
-                concat <$> many (memberFn <|> one)
+                concat <$> many (memberFn <|> one)) (trace ("body: " ++ BSC.unpack body) body)
 
 
         parseClass :: Parser [(String, ByteString)]
         parseClass = do
             {- Try to just parse a class. get the name and soon we will get into the internals of the class  -}
             clazz <- string "class" >> maybeP (spaced attribute) >> ("RadiationCppClass",) <$> word
-            skipSpace
-            {- Either this is a forward declaration, or we have a body  -}
-            (<|>) (char ';' $> [clazz]) $ do
-                  bp <- BP.takeWhile (\c -> c /= '{' && c /= ';')
-                  bod <- body
-                  (clazz:) <$> parseClassBody bod
+            if not parseMembers then
+                {- If we are not supposed to parse members, then
+                 - just continue without consuming the body -}
+                    return [clazz]
+                else do
+                    {- If we are supposed to parse the body, then continue
+                     - consuming the body and parsing it. -}
+                    skipSpace
+                    {- Either this is a forward declaration, or we have a body  -}
+                    (<|>) (char ';' $> [clazz]) $ do
+                          bp <- BP.takeWhile (\c -> c /= '{' && c /= ';')
+                          bod <- body
+                          (clazz:) <$> parseClassBody bod
 
         parseTemplate :: Parser [(String, ByteString)]
         parseTemplate =
-            let parseInside _ = [] in
-            parseInside <$> (string "template" >> skipSpace >> balanced '<' '>')
+            let parseInside :: Parser [(String, ByteString)]
+                parseInside = 
+                 (concat<$>) . many $ (fmap return $ spaced (string "typename") >> ("RadiationCppTemplateTypename",) <$> identifier) <|>
+                                      (fmap return $ spaced (string "class")    >> ("RadiationCppTemplateClass",)    <$> identifier) <|>
+                                      (nextToken $> [])
+
+            in
+            subparse parseInside =<< (string "template" >> skipSpace >> balanced '<' '>')
 
         {- Parse a single element. Either a class, sturct or union. -}
         parseElement :: Parser [(String, ByteString)]
@@ -123,7 +136,9 @@ parser = R.Parser "cpp" (const ["g:radiation_parse_members",
         log Info "Start cpp parser"
     
         forM_ (map snd $ Map.toList typMap) $ flip R.hiLink "Type"
-        R.hiLink "RadiationCppMemberFunction" "Function"
+        R.hiLink "RadiationCppMemberFunction"    "Function"
+        R.hiLink "RadiationCppTemplateClass"     "Type"
+        R.hiLink "RadiationCppTemplateTypename"  "Type"
     
         {- Get the utilities to parse the output -}
         pipes <- runCommand =<< sequence
