@@ -1,6 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Radiation.Parsers (runParser, highlight, Parser(..)) where
+
+module Radiation.Parsers (runParser, highlight, Parser(..), syn, Keyword(..), SynArg(..)) where
 
 import Vim (Variable, VimM(..), vlog, post, LogLevel(..))
 
@@ -35,6 +38,16 @@ runParser str (Parser _ func) = func str
 
 isIdentifier :: ByteString -> Bool
 isIdentifier bs = not (BSC.null bs) && (BSC.all $ \c -> isAlphaNum c || c == '_') bs
+
+data Keyword = Keyword
+class SynArg a r where
+    next :: a -> r
+instance (Convertible a ByteString, Convertible b ByteString) => 
+            SynArg Keyword (a -> [b] -> VimM()) where
+    next _ = highlight
+
+syn :: SynArg x r => x -> r
+syn = next
 
 highlight :: (Convertible a ByteString, Convertible b ByteString) => a -> [b] -> VimM ()
 highlight high word' =
