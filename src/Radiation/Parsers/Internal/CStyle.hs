@@ -60,10 +60,10 @@ balanced c1 c2 =
         looseBalanced cur n = do
             ch <- BP.anyChar
             let cur' = cur `BS.append` BSC.singleton ch
-            case ch of 
-                c1 -> looseBalanced cur' (n + 1)
-                c2 -> looseBalanced cur' (n - 1)
-                _ ->   looseBalanced cur' n
+            case () of 
+                () | ch == c1  -> looseBalanced cur' (n + 1)
+                   | ch == c2  -> looseBalanced cur' (n - 1)
+                   | otherwise -> looseBalanced cur' n
         in
 
     BP.char c1 >> looseBalanced (BSC.singleton c1) 1
