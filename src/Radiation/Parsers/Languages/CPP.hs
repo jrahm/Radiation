@@ -11,10 +11,13 @@ import Debug.Trace
 import My.Utils
 import Prelude hiding (log)
 import Radiation.Parsers.Internal.CStyle
+import Radiation.Parsers.Internal.CppStyle
 import Radiation.Parsers.Internal.CommandParser
 import Radiation.Parsers.Internal.InternalIO
 import Radiation.Parsers.Internal.WithAttoparsec
 import Vim
+
+import Data.ByteString (ByteString)
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC
@@ -54,14 +57,47 @@ parseCPP =
         word = skipSpace >> BP.takeWhile sat <* skipSpace
             where sat ch = isAlphaNum ch || ch == '_'
 
-        {- Parse a class -}
+
+        parseClassBody :: BS.ByteString -> Parser [(String, ByteString)]
+        parseClassBody = subparse $ do
+                let memberFn = do
+                        _type <- spaced cppType
+                        trace ("Type [[" ++ BSC.unpack _type ++ "]]") (return ())
+                        name <- identifier
+                        trace ("Name [[" ++ BSC.unpack name ++ "]]") (return ())
+                        _parens <- spaced balancedParens
+                        trace ("Parens [[" ++ BSC.unpack _parens ++ "]]") (return ())
+                        return [("RadiationCppMemberFunction", name)]
+                concat <$> many (memberFn <|> one)
+
+        trace2 s x = trace (s ++ show x) x
+
+        parseClass :: Parser [(String, ByteString)]
+        parseClass = do
+            {- Try to just parse a class. get the name and soon we will get into the internals of the class  -}
+            clazz <- string "class" >> maybeP (spaced attribute) >> ("RadiationCppClass",) <$> word
+            trace ("clazz: " ++ BSC.unpack (snd clazz)) $ do
+                skipSpace
+                {- Either this is a forward declaration, or we have a body  -}
+                (<|>) (char ';' $> [clazz]) $ do
+                      bp <- BP.takeWhile (\c -> c /= '{' && c /= ';')
+                      bod <- body
+                      (clazz:) <$> parseClassBody bod
+
+        parseTemplate :: Parser [(String, ByteString)]
+        parseTemplate =
+            let parseInside _ = [] in
+            parseInside <$> (string "template" >> skipSpace >> balanced '<' '>')
+
+        {- Parse a single element. Either a class, sturct or union. -}
+        parseElement :: Parser [(String, ByteString)]
         parseElement =
-            (string "class"       >> maybeP (spaced attribute) >> ("RadiationCppClass",)     <$> word) <|>
-            (string "struct"      >> maybeP (spaced attribute) >> ("RadiationCppStruct",)    <$> word) <|>
-            (string "union"       >> maybeP (spaced attribute) >> ("RadiationCppUnion",)     <$> word) <|>
-            (string "enum"        >> maybeP (spaced attribute) >> ("RadiationCppEnum",)      <$> word) <|>
-            (string "namespace"   >> maybeP (spaced attribute) >> ("RadiationCppNamespace",) <$> word) <|>
-            (string "typedef"     >> maybeP (spaced attribute) >> ("RadiationCppTypedef",) <$> typedef <* trace "Made it here!" (return ()))
+            parseTemplate <|> parseClass <|>
+            (fmap return $ string "struct"      >> maybeP (spaced attribute) >> ("RadiationCppStruct",)    <$> word) <|>
+            (fmap return $ string "union"       >> maybeP (spaced attribute) >> ("RadiationCppUnion",)     <$> word) <|>
+            (fmap return $ string "enum"        >> maybeP (spaced attribute) >> ("RadiationCppEnum",)      <$> word) <|>
+            (fmap return $ string "namespace"   >> maybeP (spaced attribute) >> ("RadiationCppNamespace",) <$> word) <|>
+            (fmap return $ string "typedef"     >> maybeP (spaced attribute) >> ("RadiationCppTypedef",)   <$> typedef <* trace "Made it here!" (return ()))
 
         typedef = trace "Typedef..." $ do
             void (skipSpace >> string "struct" >> skipSpace >> (body <|> (identifier >> body) <|> identifier)) <|> return ()
@@ -69,9 +105,10 @@ parseCPP =
             trace (show (last $ BSC.words bs)) $
                 return $ last $ BSC.words bs
 
+        one :: Parser [(String, ByteString)]
         one =
               {- Try to parse a class -}
-              (return <$> parseElement) <|> 
+              parseElement <|> 
               {- take until the next space -}
               (BP.takeWhile1 (not . isSpace) >> BP.takeWhile1 isSpace $> []) <|>
               {- take any char otherwise -}
@@ -85,6 +122,7 @@ parser = R.Parser "cpp" (const ["g:radiation_cpp_cc", "g:radiation_cpp_flags"]) 
     log Info "Start cpp parser"
 
     forM_ (map snd $ Map.toList typMap) $ flip R.hiLink "Type"
+    R.hiLink "RadiationCppMemberFunction" "Function"
 
     {- Get the utilities to parse the output -}
     pipes <- runCommand =<< sequence
