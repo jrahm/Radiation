@@ -15,6 +15,8 @@ import qualified Radiation.Parsers as R
 import My.Utils
 import Data.Maybe (catMaybes)
 
+import Control.Monad.State.Lazy
+
 parseJavaScript :: Parser (VimM ())
 parseJavaScript =
     let parseFunction = string "function" >> identifier
