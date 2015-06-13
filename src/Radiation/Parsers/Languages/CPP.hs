@@ -49,6 +49,10 @@ typMap = Map.fromList [
         ("class","RadiationCppClass"),
         ("enum","RadiationCppEnum")]
 
+data CPPConfig = CPPConfig {
+    configIncludeMemberFunctions :: Bool
+}
+
 {- Parser the C++ file. Look for classes, typedefs and namespaces -}
 parseCPP :: Parser (Map.Map String (Set.Set BS.ByteString))
 parseCPP = 
@@ -62,27 +66,22 @@ parseCPP =
         parseClassBody = subparse $ do
                 let memberFn = do
                         _type <- spaced cppType
-                        trace ("Type [[" ++ BSC.unpack _type ++ "]]") (return ())
                         name <- identifier
-                        trace ("Name [[" ++ BSC.unpack name ++ "]]") (return ())
                         _parens <- spaced balancedParens
-                        trace ("Parens [[" ++ BSC.unpack _parens ++ "]]") (return ())
                         return [("RadiationCppMemberFunction", name)]
                 concat <$> many (memberFn <|> one)
 
-        trace2 s x = trace (s ++ show x) x
 
         parseClass :: Parser [(String, ByteString)]
         parseClass = do
             {- Try to just parse a class. get the name and soon we will get into the internals of the class  -}
             clazz <- string "class" >> maybeP (spaced attribute) >> ("RadiationCppClass",) <$> word
-            trace ("clazz: " ++ BSC.unpack (snd clazz)) $ do
-                skipSpace
-                {- Either this is a forward declaration, or we have a body  -}
-                (<|>) (char ';' $> [clazz]) $ do
-                      bp <- BP.takeWhile (\c -> c /= '{' && c /= ';')
-                      bod <- body
-                      (clazz:) <$> parseClassBody bod
+            skipSpace
+            {- Either this is a forward declaration, or we have a body  -}
+            (<|>) (char ';' $> [clazz]) $ do
+                  bp <- BP.takeWhile (\c -> c /= '{' && c /= ';')
+                  bod <- body
+                  (clazz:) <$> parseClassBody bod
 
         parseTemplate :: Parser [(String, ByteString)]
         parseTemplate =
@@ -97,13 +96,12 @@ parseCPP =
             (fmap return $ string "union"       >> maybeP (spaced attribute) >> ("RadiationCppUnion",)     <$> word) <|>
             (fmap return $ string "enum"        >> maybeP (spaced attribute) >> ("RadiationCppEnum",)      <$> word) <|>
             (fmap return $ string "namespace"   >> maybeP (spaced attribute) >> ("RadiationCppNamespace",) <$> word) <|>
-            (fmap return $ string "typedef"     >> maybeP (spaced attribute) >> ("RadiationCppTypedef",)   <$> typedef <* trace "Made it here!" (return ()))
+            (fmap return $ string "typedef"     >> maybeP (spaced attribute) >> ("RadiationCppTypedef",)   <$> typedef)
 
-        typedef = trace "Typedef..." $ do
+        typedef = do
             void (skipSpace >> string "struct" >> skipSpace >> (body <|> (identifier >> body) <|> identifier)) <|> return ()
             bs <- BP.takeWhile (/=';')
-            trace (show (last $ BSC.words bs)) $
-                return $ last $ BSC.words bs
+            return $ last $ BSC.words bs
 
         one :: Parser [(String, ByteString)]
         one =
@@ -118,18 +116,21 @@ parseCPP =
         (map_fromList2 . concat) <$> many one
 
 parser :: R.Parser
-parser = R.Parser "cpp" (const ["g:radiation_cpp_cc", "g:radiation_cpp_flags"]) $ \filename -> do
-    log Info "Start cpp parser"
-
-    forM_ (map snd $ Map.toList typMap) $ flip R.hiLink "Type"
-    R.hiLink "RadiationCppMemberFunction" "Function"
-
-    {- Get the utilities to parse the output -}
-    pipes <- runCommand =<< sequence
-        [queryDefault "g:radiation_cpp_cc" "g++",
-         queryDefault "g:radiation_cpp_flags" "",
-         pure "-E", pure filename]
+parser = R.Parser "cpp" (const ["g:radiation_parse_members",    
+                                "g:radiation_cpp_cc",
+                                "g:radiation_cpp_flags"])
+    $ \filename -> do
+        log Info "Start cpp parser"
     
-    reportErrors pipes $
-        withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP)
-            <=< vGetHandleContents
+        forM_ (map snd $ Map.toList typMap) $ flip R.hiLink "Type"
+        R.hiLink "RadiationCppMemberFunction" "Function"
+    
+        {- Get the utilities to parse the output -}
+        pipes <- runCommand =<< sequence
+            [queryDefault "g:radiation_cpp_cc" "g++",
+             queryDefault "g:radiation_cpp_flags" "",
+             pure "-E", pure filename]
+        
+        reportErrors pipes $
+            withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP)
+                <=< vGetHandleContents
