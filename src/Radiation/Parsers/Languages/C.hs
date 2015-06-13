@@ -88,13 +88,15 @@ parseC = let
 
             return $ catMaybes dat
             
-        in
-        subparse (removePattern attribute) $
+        in do
+        bs <- removePattern attribute
+        subparse (
             (fromList' . concat) <$> many (choice
                 [ parseTypedef,
                   parseFunction,
                   parseAnyType,
                   anyChar $> []])
+            ) bs
 
    where fromList' :: (Ord a, Ord b) => [(a,b)] -> Map.Map a (Set.Set b)
          fromList' = foldl (\mp (k,v) ->

@@ -31,10 +31,9 @@ removePattern :: Parser BS.ByteString -> Parser BS.ByteString
 removePattern pattern  = BS.concat <$> many ((pattern >> return BS.empty) <|>
                                              (BS.singleton <$> BB.anyWord8))
 
-subparse :: Parser BS.ByteString -> Parser a -> Parser a
-subparse bsParser myParser = do
-    bs' <- bsParser
-    case parseOnly myParser bs' of
+subparse :: Parser a -> BS.ByteString -> Parser a
+subparse myParser bs =
+    case parseOnly myParser bs of
         Left err -> fail err
         Right map -> return map
     
