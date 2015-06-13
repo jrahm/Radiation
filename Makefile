@@ -7,4 +7,5 @@ optimize:
 	cabal build
 
 install:
+	./install.sh
 	cp dist/build/radiation/radiation ~/.cabal/bin
