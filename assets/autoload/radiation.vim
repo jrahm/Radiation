@@ -91,4 +91,8 @@ function! radiation#SourceAndRun()
     call radiation#Radiate()
 endfunction
 
+function! radiation#Open()
+    python radiation_open_vimfile()
+endfunction
+
 call s:Initialize()

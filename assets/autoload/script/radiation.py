@@ -108,15 +108,12 @@ def kill_running():
 def radiation_source(filename=None, is_cache=False):
     if not filename:
         filename = vim.eval("expand('%')")
-    hashm = hashlib.md5()
-    hashm.update(filename)
-    hashname = hashm.hexdigest()
 
     cache = ".cache" if is_cache else ""
 
     # the filename of the radiated content is now
     # stored in the file $TEMP/radiation_$(md5sum filename)_x.vim
-    newfilename = "%s/radiation_%s_x.vim%s" % (TEMP, hashname, cache)
+    newfilename = radiation_calculate_filename(filename) + cache
     debug("sourcing: " + newfilename)
 
     if os.path.isfile(newfilename):
@@ -127,3 +124,26 @@ def radiation_source(filename=None, is_cache=False):
             if os.path.exists(cachepath):
                 os.remove(cachepath)
             os.rename(newfilename, cachepath)
+
+def radiation_open_vimfile(filename=None):
+    if not filename:
+        filename = vim.eval("expand('%')")
+    fnname = radiation_calculate_filename(filename)
+
+    if os.path.isfile(fnname):
+        vim.command("e " + fnname)
+    else:
+        fnname += ".cache"
+        if os.path.isfile(fnname):
+            vim.command("e " + fnname)
+        else:
+            vim.command("echoerr 'No such file!'")
+
+def radiation_calculate_filename(basename):
+    hashm = hashlib.md5()
+    hashm.update(basename)
+    hashname = hashm.hexdigest()
+
+    newfilename = "%s/radiation_%s_x.vim" % (TEMP, hashname)
+    return newfilename
+    

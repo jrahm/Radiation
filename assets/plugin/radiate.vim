@@ -1,8 +1,12 @@
 " quick common to radiate
 command! Radiate call radiation#Radiate()
-command! RadiateAuto call RadiationAuto()
-command! RadiateNoAuto call RadiationNoAuto()
-command! RadiateSource call radiation#TrySource()
+command! Radiat  call radiation#Radiate()
+
+command! RadiationAuto call RadiationAuto()
+command! RadiationNoAuto call RadiationNoAuto()
+command! RadiationSource call radiation#TrySource()
+
+command! RadiationOpen call radiation#Open()
 
 function TryHighlight(name, cterm)
     if ! hlexists(a:name)
