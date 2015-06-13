@@ -6,21 +6,25 @@
 module Radiation.Parsers (
     runParser, highlight, Parser(..),
     syn, Keyword(..), SynArg(..),
-    Link(..), HiArg(..), hi, hiLink) where
+    Link(..), HiArg(..), hiLink) where
 
 import Vim (Variable, VimM(..), vlog, post, LogLevel(..), openLogFilePortable)
 
 import Control.Monad (unless)
 import Data.Monoid (mconcat, mappend)
-import Data.Char (isAlphaNum)
+import Data.Char (isAlphaNum, toLower)
 
 import My.Utils ((+>+))
 import Data.ByteString as BS (ByteString)
 import Data.ByteString.Char8 as BSC (all, null, putStrLn, pack)
+import qualified Data.ByteString.Char8 as BSC (map)
 
 import Data.Convertible (Convertible, convert)
 import Data.List (intersperse)
 import Control.Monad.IO.Class (liftIO)
+
+bscToLower :: BS.ByteString -> BS.ByteString
+bscToLower = BSC.map toLower
 
 {- A parser has a couple of things. First is a list
  - of the variables it requires to complete. Second is
@@ -76,7 +80,7 @@ hiLink = hi Link
 highlight :: (Convertible a ByteString, Convertible b ByteString) => a -> [b] -> VimM ()
 highlight high word' =
     let highlight' highlighting words = 
-            let word = filter isIdentifier words
+            let word = filter (\word -> isIdentifier word && bscToLower word /= "contains") words
                 wordbs = mconcat $ intersperse " "  word
                 in do
 
