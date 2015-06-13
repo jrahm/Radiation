@@ -25,22 +25,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Radiation.Parsers as R
 
-blacklist :: Set.Set BS.ByteString
-blacklist = Set.fromList [
-            "auto"    ,"else"  ,"long"        ,"switch",
-            "break"   ,"enum"  ,"register"    ,"typedef",
-            "case"    ,"extern","return"      ,"union",
-            "char"    ,"float" ,"short"       ,"unsigned",
-            "const"   ,"for"   ,"signed"      ,"void",
-            "continue","goto"  ,"sizeof"      ,"volatile",
-            "default" ,"if"    ,"static"      ,"while",
-            "do"      ,"int"   ,"struct"      ,"_Packed",
-            "double"  ,"asm"   ,"dynamic_cast","namespace","reinterpret_cast",  "try",
-            "bool",        "explicit",      "new",        "static_cast",       "typeid",
-            "catch",       "false",         "operator",   "template",          "typename",
-            "class",       "friend",        "private",    "this",              "using",
-            "const_cast",  "inline",        "public",     "throw",             "virtual",
-            "delete",      "mutable",       "protected",  "true",              "wchar_t" ]
 
 typMap :: Map.Map BS.ByteString BS.ByteString
 typMap = Map.fromList [
@@ -62,13 +46,17 @@ parseCPP (CPPConfig parseMembers) =
             where sat ch = isAlphaNum ch || ch == '_'
 
 
-        parseClassBody :: BS.ByteString -> Parser [(String, ByteString)]
-        parseClassBody = subparse $ do
+        parseClassBody :: BS.ByteString -> BS.ByteString -> Parser [(String, ByteString)]
+        parseClassBody classname = subparse $ do
                 let memberFn = do
                         _type <- spaced cppType
                         name <- identifier
-                        _parens <- spaced balancedParens
-                        return [("RadiationCppMemberFunction", name)]
+                        if name == classname then
+                            {- This means that this is a constructor. Don't parse it -}
+                            fail ""
+                            else do
+                                _parens <- spaced balancedParens
+                                return [("RadiationCppMemberFunction", name)]
                 concat <$> many (memberFn <|> one)
 
 
@@ -88,7 +76,7 @@ parseCPP (CPPConfig parseMembers) =
                     (<|>) (char ';' $> [clazz]) $ do
                           bp <- BP.takeWhile (\c -> c /= '{' && c /= ';')
                           bod <- body
-                          (clazz:) <$> parseClassBody bod
+                          (clazz:) <$> parseClassBody (snd clazz) bod
 
         parseTemplate :: Parser [(String, ByteString)]
         parseTemplate =
@@ -148,5 +136,5 @@ parser = R.Parser "cpp" (const ["g:radiation_parse_members",
         
         config <- CPPConfig <$> ((=="1") <$> queryDefault "g:radiation_parse_members" "1")
         reportErrors pipes $
-            withParsingMap (Map.map (Set.\\blacklist) <$> parseCPP config)
+            withParsingMap (Map.map (Set.\\reservedWords) <$> parseCPP config)
                 <=< vGetHandleContents
