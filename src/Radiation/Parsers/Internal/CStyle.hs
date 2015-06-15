@@ -13,6 +13,7 @@ import qualified Data.Char as C
 
 import Control.Applicative
 import Control.Monad
+import Data.Monoid (mappend)
 
 import My.Utils
 

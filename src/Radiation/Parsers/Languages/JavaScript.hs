@@ -2,7 +2,7 @@
 {-# LANGUAGE TupleSections #-}
 module Radiation.Parsers.Languages.JavaScript(parser) where
 
-import Control.Applicative ((<|>), (<$>))
+import Control.Applicative ((<|>), (<$>), (<*))
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.State.Lazy
