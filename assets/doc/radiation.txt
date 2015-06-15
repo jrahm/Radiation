@@ -1,0 +1,66 @@
+radiation.txt   Baus-style active syntax highlighting will make you snort at IDE's
+radiation
+
+
+         __________             .___.__        __  .__                ~
+         \______   \_____     __| _/|__|____ _/  |_|__| ____   ____   ~
+          |       _/\__  \   / __ | |  \__  \\   __\  |/  _ \ /    \  ~
+          |    |   \ / __ \_/ /_/ | |  |/ __ \|  | |  (  <_> )   |  \ ~
+          |____|_  /(____  /\____ | |__(____  /__| |__|\____/|___|  / ~
+                 \/      \/      \/         \/                    \/  ~
+
+
+
+                              Reference Manual~
+
+
+==============================================================================
+CONTENTS                                                   *radiation-contents*
+
+    1.Intro...........................................|radiation-intro|
+    2.C++.............................................|radiation-cpp|
+
+==============================================================================
+1. Intro                                                   *radiation-intro*
+
+Radiation is a plugin for vim that does active syntax highlighting. That means that
+Radiation will in the background parse the current file, looking for items to
+highlight. Currently C, C++ and some JavaScript are the supported languages.
+
+For example, if a cpp file contains:
+    
+    #include <cstdio>
+
+    class MyClass {
+        MyClass();
+
+        int myfunction();
+    };
+
+    typedef int s32_t;
+
+    typedef struct {
+        int member
+    } mystruct_t;
+
+
+Then radiation will highlight all instances of MyClass, myfunction, s32_t, mystruct_t
+and everything included from cstdio. The highlighting groups Radiation uses are 
+
+
+==============================================================================
+2. C++                                                      *radiation-cpp*
+
+The C++ highlighter is automatically invoked when a C++ file is opened
+
+Highlighting groups for C++ are as follows:
+
+    RadiationCppTypedef            - Highlight for a typedef. Defaultly links to Type
+    RadiationCppClass              - Highlight for a C++ class. Defaultly links to Type
+    RadiationCppStruct             - Highlight for a C++ struct. Defaultly links to Type
+    RadiationCppEnum               - Highlight for a C++ enums. Defaultly links to Type
+    RadiationCppUnion              - Highlight for a C++ union. Defaultly links to Type
+    RadiationCppTemplateClass      - Highlight for a C++ class found in a template. Defaultly links to Type
+    RadiationCppTemplateTypename   - Highlight for a C++ typename found in a template. Defaultly links to Type
+    RadiationCppMemberFunction     - Highlight for a C++ member function. Defaultly links to Function
+    RadiationCppFunction           - Highlight for a C++ non-member function. Defaultly links to Function
