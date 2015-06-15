@@ -18,6 +18,7 @@ radiation
 CONTENTS                                                   *radiation-contents*
 
     1.Intro...........................................|radiation-intro|
+        1.1. Getting Started..........................|radiation-getstarted|
     2.C++.............................................|radiation-cpp|
 
 ==============================================================================
@@ -46,6 +47,22 @@ For example, if a cpp file contains:
 
 Then radiation will highlight all instances of MyClass, myfunction, s32_t, mystruct_t
 and everything included from cstdio. The highlighting groups Radiation uses are 
+
+------------------------------------------------------------------------------
+1.1. Getting Started                                       *radiation-getstarted*
+
+Radiation operates as a separate binary which is invoked from vim. This binary
+is written in Haskell and may be installed using cabal (if you so will). This
+will put the radiation binary on your $PATH and radiation will use that version.
+Alternatively, if you do not have the haskell-platform installed (as most do not),
+then there are pre-compiled builds available on Github
+(see https://github.com/jrahm/Radiation/releases). These will ship with a separate
+executable and will not pollute the $PATH. However, if there is a Radiation executable
+on the path, Radiation will default to that one. To manually change the radiation
+binary, use the environment g:radiation_binary to configure it.
+
+It is recommended to build from source and use an executable on the $PATH *if* you
+have haskell-platform with cabal installed. It makes it easier to update.
 
 
 ==============================================================================
