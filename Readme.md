@@ -6,7 +6,7 @@
             \/      \/      \/         \/                    \/ 
                                                                                                             
                                             
-Radiation is a new Vim plugin in the (very) early stages of deelopment.
+Radiation is a new Vim plugin in the  early stages of deelopment.
 Originally implemented in Ruby then C, after complete refactoring of the
 architecture, the current implementation is written in Haskell and is far more
 robust than ever before.
@@ -16,9 +16,9 @@ robust than ever before.
 
 ## What is Radiation?
 
-Radiation is a plugin that enables context aware syntax highlighting for C++
-files (Soon to be extended). This extension tells Vim about classes, structs,
-typedefs and namespaces are included so they may be highlighted.
+Radiation is a plugin that gives Vim active and dynamic syntax highlighting to
+C++, C, and JavaScript file types. This allows the syntax of each source file
+to change with the content of that file.
 
 ## Why use Radiation?
 
@@ -38,6 +38,12 @@ typedefs and namespaces are included so they may be highlighted.
     * Since radiation is not tied to the Vim runtime and is implemented in Haskell,
     there are no restrictions at the language level. THe binary may take full advantage
     of multi threadding and may also be updated on the fly. No restart required.
+
+3. Radiation is (mostly) seamless
+    * A lot of work has gone into architecting the system to be as seamless as
+      possible. This means that you can go on editing your file and radiation
+      will happily crunch away and get back when it's done. This means limited
+      differences to the user (aside from the awesome new highlighting!).
 
 ## Why not use Radiation
     
