@@ -108,4 +108,8 @@ function! radiation#OpenLog()
     python radiation_open_log()
 endfunction
 
+function! radiation#RadiateRecursive(ftype)
+    python radiate_all()
+endfunction
+
 call s:Initialize()

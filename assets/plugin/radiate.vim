@@ -11,6 +11,7 @@ command! RadiationDelete call radiation#Remove()
 command! RadiationClean call radiation#Clean() 
 
 command! RadiationOpenLog call radiation#OpenLog()
+command! -nargs=1 RadiateRecursive call radiation#RadiateRecursive(<f-args>)
 
 function TryHighlight(name, cterm)
     if ! hlexists(a:name)

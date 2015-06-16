@@ -122,6 +122,7 @@ def radiation_source(filename=None, is_cache=False):
 
     cache = ".cache" if is_cache else ""
 
+
     # the filename of the radiated content is now
     # stored in the file $TEMP/radiation_$(md5sum filename)_x.vim
     newfilename = radiation_calculate_filename(filename) + cache
@@ -150,15 +151,19 @@ def radiation_open_vimfile(filename=None):
         else:
             vim.command("echoerr 'No such file!'")
 
-def radiate_all(ftype):
+def radiate_all(ftype=None):
+    if ftype is None:
+        ftype = vim.eval("a:ftype")
+
     script_directory = vim.eval("g:radiation_script_directory")
-    radiate_script = os.path.join(script_directory, "radiate_everything.py")
+    radiate_script = os.path.join(script_directory, "script", "radiate_everything.py")
 
     radiation_binary = get_default("g:radiation_binary", "radiation")
     needed_vars = get_needed_vars("", ftype, radiation_binary)
     args = vars_to_args(needed_vars)
 
-    runprocess(["python", radiate_script, radiation_binary, ftype] + args, False)
+    vim.command('echo "python %s %s %s"' % (radiate_script, radiation_binary, ftype))
+    subprocess.Popen(["python", radiate_script, radiation_binary, ftype] + args, stdout=open("radiation_all.log", "w"))
 
 def radiation_remove_synfile(filename=None):
     if not filename:
