@@ -62,7 +62,7 @@ def radiate(filetype):
     global RADIATION_DEBUG
 
     # get the filename
-    filename = vim.eval("expand('%')")
+    filename = vim.eval("expand('%:p')")
     RADIATION_DEBUG = int(get_default("g:radiation_pydebug", "0"));
 
     open_log()
@@ -110,7 +110,7 @@ def kill_running():
 
 def radiation_source(filename=None, is_cache=False):
     if not filename:
-        filename = vim.eval("expand('%')")
+        filename = vim.eval("expand('%:p')")
 
     cache = ".cache" if is_cache else ""
 
@@ -130,7 +130,7 @@ def radiation_source(filename=None, is_cache=False):
 
 def radiation_open_vimfile(filename=None):
     if not filename:
-        filename = vim.eval("expand('%')")
+        filename = vim.eval("expand('%:p')")
     fnname = radiation_calculate_filename(filename)
 
     if os.path.isfile(fnname):
@@ -144,7 +144,7 @@ def radiation_open_vimfile(filename=None):
 
 def radiation_remove_synfile(filename=None):
     if not filename:
-        filename = vim.eval("expand('%')")
+        filename = vim.eval("expand('%:p')")
     fnname = radiation_calculate_filename(filename)
     try:
         os.remove(fnname)
