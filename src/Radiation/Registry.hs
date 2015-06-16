@@ -5,6 +5,8 @@ import Radiation.Parsers (Parser(..))
 import System.IO
 import System.Exit
 
+import System.FilePath
+
 import qualified Radiation.Parsers.Languages.C
 import qualified Radiation.Parsers.Languages.CPP
 import qualified Radiation.Parsers.Languages.Test
@@ -25,6 +27,12 @@ lookupIO :: String -> IO Parser
 lookupIO str = case M.lookup str availabiltyMap of
     Nothing -> hPutStrLn stderr ("Error: " ++ str ++ " no such parser") >> exitWith (ExitFailure 1) >> undefined
     Just x -> return x
+
+ftDetect :: FilePath -> IO String
+ftDetect fname =
+    let (fname, ext) = splitExtension fname in
+    if ext == "js" then return "javascript"
+    else return ext
 
 available :: [String]
 available = map fst $ toList availabiltyMap

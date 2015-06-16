@@ -47,19 +47,25 @@ main = do
         case argv of
             ["--available"] -> mapM_ putStrLn Registry.available
 
-            [file,typ,"--requires"] -> do
+            [file,typ',"--requires"] -> do
                 {- The client code is attempting to figure out what
                  3a- this parser will need to complete its task -}
+                typ <- getType file typ'
                 (Parser _ req _) <- Registry.lookupIO typ
                 mapM_ putStrLn $ req file
             
-            (file:typ:arguments) ->
+            (file:typ':arguments) ->
                 let arguments' = map (break (=='=')) arguments
                     argmap = fromList (map (second tail) arguments')
                     in do
+                typ <- getType file typ'
                 (Parser typ _ fn) <- Registry.lookupIO typ
+
                 runVimM argmap file $ \fp -> do
                     openLogFilePortable ("radiation_"++typ++".log") Debug
                     fn fp
 
             _ -> putStrLn "Error parsing command line parameters" >> printHelp
+    where
+        getType fname "--detect" = Registry.ftDetect fname
+        getType _ t = return t
