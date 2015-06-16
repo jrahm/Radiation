@@ -1,5 +1,6 @@
 
 let s:script_dir = expand('<sfile>:p:h')
+let g:radiation_script_directory = s:script_dir
 let s:radiation_initialized = 0
 let g:radiation_log_level = "error"
 

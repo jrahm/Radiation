@@ -56,6 +56,24 @@ def runprocess(argv, capture_stdout):
     return proc
 
         
+def get_needed_vars(filename, ftype, radiation_binary):
+    # first, read the required variables from the binary so we know
+    # what the background process will need to complete the radiation
+    argv = [radiation_binary, filename, ftype, "--requires"]
+    debug("argv: %s" % argv)
+    proc = runprocess(argv, True);
+
+    stout = proc.stdout
+    needed_vars = stout.readlines()
+    needed_vars = [i.strip() for i in needed_vars]
+
+    return needed_vars
+
+def vars_to_args(needed_vars):
+    new_args = [(var, get_default(var, None)) for var in needed_vars]
+    new_args = [("%s=%s" % (k, v)) for (k, v) in new_args if v is not None]
+    return new_args
+    
 
 def radiate(filetype):
     global g_running_process
@@ -71,23 +89,13 @@ def radiate(filetype):
     radiation_source(filename, True) # source the cached version if it exists
 
     radiation_binary = get_default("g:radiation_binary", "radiation")
-
-    # first, read the required variables from the binary so we know
-    # what the background process will need to complete the radiation
-    argv = [radiation_binary, filename, filetype, "--requires"]
-    debug("argv: %s" % argv)
-    proc = runprocess(argv, True);
-
-    stout = proc.stdout
-    needed_vars = stout.readlines()
-    needed_vars = [i.strip() for i in needed_vars]
+    needed_vars = get_needed_vars(filename, filetype, radiation_binary)
 
     # now we know the variables that Radiation must know about
     # to continue. We can now run the binary to parse it.
     debug("needed vars: %s" % needed_vars)
 
-    new_args = [(var, get_default(var, None)) for var in needed_vars]
-    new_args = [("%s=%s" % (k, v)) for (k, v) in new_args if v is not None]
+    new_args = vars_to_args(needed_vars)
 
     argv = [radiation_binary, filename, filetype] + new_args
     debug("argv: %s" % argv)
@@ -141,6 +149,16 @@ def radiation_open_vimfile(filename=None):
             vim.command("e " + fnname)
         else:
             vim.command("echoerr 'No such file!'")
+
+def radiate_all(ftype):
+    script_directory = vim.eval("g:radiation_script_directory")
+    radiate_script = os.path.join(script_directory, "radiate_everything.py")
+
+    radiation_binary = get_default("g:radiation_binary", "radiation")
+    needed_vars = get_needed_vars("", ftype, radiation_binary)
+    args = vars_to_args(needed_vars)
+
+    runprocess(["python", radiate_script, radiation_binary, ftype] + args, False)
 
 def radiation_remove_synfile(filename=None):
     if not filename:
