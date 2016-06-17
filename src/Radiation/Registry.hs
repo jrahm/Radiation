@@ -11,6 +11,7 @@ import qualified Radiation.Parsers.Languages.C
 import qualified Radiation.Parsers.Languages.CPP
 import qualified Radiation.Parsers.Languages.Test
 import qualified Radiation.Parsers.Languages.JavaScript
+import qualified Radiation.Parsers.Languages.Java
 
 availabiltyMap :: Map String Parser
 availabiltyMap = fromList $ map (\p@(Parser typ _ _) -> (typ, p)) [ 
@@ -18,6 +19,7 @@ availabiltyMap = fromList $ map (\p@(Parser typ _ _) -> (typ, p)) [
         , Radiation.Parsers.Languages.C.parser
         , Radiation.Parsers.Languages.CPP.parser
         , Radiation.Parsers.Languages.JavaScript.parser
+        , Radiation.Parsers.Languages.Java.parser
     ]
 
 lookup :: String -> Maybe Parser
