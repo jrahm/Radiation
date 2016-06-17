@@ -18,7 +18,7 @@ cabal-version:       >=1.10
 executable radiation
   main-is:             Main.hs
   hs-source-dirs:      src
-  ghc-options:         -O2 -threaded -fprof-auto -prof
+  ghc-options:         -O2 -threaded
   -- other-modules:       
   other-extensions:    TupleSections, OverloadedStrings
   build-depends:       base, containers, transformers, process, bytestring, attoparsec,
