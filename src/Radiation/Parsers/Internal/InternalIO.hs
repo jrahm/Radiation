@@ -26,7 +26,8 @@ instance HasHandleContents BS.ByteString where
 vGetHandleContents :: (HasHandleContents a) => Handle -> VimM a
 vGetHandleContents = liftIO . getHandleContents
 
-reportErrors :: (Handle,Handle) -> (Handle -> VimM ()) -> VimM ()
-reportErrors (stout,sterr) func = do
-    func stout
+reportErrors :: (Handle,Handle,x) -> (Handle -> VimM a) -> VimM a
+reportErrors (stout,sterr,_) func = do
+    ret <- func stout
     mapM_ (vlog Error) =<< (BSC.lines <$> vGetHandleContents sterr)
+    return ret

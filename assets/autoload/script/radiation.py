@@ -76,31 +76,34 @@ def vars_to_args(needed_vars):
     
 
 def radiate(filetype):
-    global g_running_process
-    global RADIATION_DEBUG
+    try:
+      global g_running_process
+      global RADIATION_DEBUG
 
-    # get the filename
-    filename = vim.eval("expand('%:p')")
-    RADIATION_DEBUG = int(get_default("g:radiation_pydebug", "0"));
+      # get the filename
+      filename = vim.eval("expand('%:p')")
+      RADIATION_DEBUG = int(get_default("g:radiation_pydebug", "0"));
 
-    open_log()
-    debug("radiate: %s" % filename)
+      open_log()
+      debug("radiate: %s" % filename)
 
-    radiation_source(filename, True) # source the cached version if it exists
+      radiation_source(filename, True) # source the cached version if it exists
 
-    radiation_binary = get_default("g:radiation_binary", "radiation")
-    needed_vars = get_needed_vars(filename, filetype, radiation_binary)
+      radiation_binary = get_default("g:radiation_binary", "radiation")
+      needed_vars = get_needed_vars(filename, filetype, radiation_binary)
 
-    # now we know the variables that Radiation must know about
-    # to continue. We can now run the binary to parse it.
-    debug("needed vars: %s" % needed_vars)
+      # now we know the variables that Radiation must know about
+      # to continue. We can now run the binary to parse it.
+      debug("needed vars: %s" % needed_vars)
 
-    new_args = vars_to_args(needed_vars)
+      new_args = vars_to_args(needed_vars)
 
-    argv = [radiation_binary, filename, filetype] + new_args
-    debug("argv: %s" % argv)
-    g_running_process = runprocess(argv, False)
-    debug("detach process")
+      argv = [radiation_binary, filename, filetype, "+RTS", "-N4"] + new_args
+      debug("argv: %s" % argv)
+      g_running_process = runprocess(argv, False)
+      debug("detach process")
+    except:
+        pass
 
     # close_log()
 

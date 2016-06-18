@@ -26,22 +26,28 @@ module Vim(
     , openLogFilePortable
     , setLogLevel, tempFolder
     , LogLevel(..), Variable
+    , runTryCache, parVim
     , c
 )
 where
     
+import Codec.Compression.GZip
 import Control.Applicative
 import Control.Arrow
+import Control.Concurrent.PooledIO.Independent
 import Control.Exception
 import Control.Monad hiding (forM_)
 import Control.Monad.Error.Class
 import Control.Monad.IO.Class
+
 import Data.Monoid (mappend, mconcat)
 import Data.ByteString (ByteString)
 import Data.Char
 
 import My.Utils
 import Data.Convertible (convert, Convertible(..))
+import Data.IORef
+import Data.List
 
 import Data.Foldable (forM_, asum)
 import Data.Hash.MD5
@@ -53,9 +59,11 @@ import System.Environment
 import System.FilePath ((</>))
 import System.IO
 import System.Process
+import System.Directory
 import Text.Printf
 
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 import qualified Data.ByteString.Char8 as BSC
 import qualified Data.Map as Map
 
@@ -111,6 +119,10 @@ data VimData = VimData {
       {- the log level to display in Vim itself -}
     , _vimLogLevel :: Maybe LogLevel
 }
+
+unionVD :: VimData -> VimData -> VimData
+unionVD (VimData lh cv1 cb1 ll) (VimData _ cv2 cb2 _) =
+          (VimData lh (cv1 `mappend` cv2) (cb1 `mappend` cb2) ll)
 
 dumpCommands :: FilePath -> VimData -> IO ()
 dumpCommands fp vd = do
@@ -198,6 +210,29 @@ setLogLevel :: LogLevel -> VimM ()
 setLogLevel ll = VimM $ \_ (VimData m a b c) ->
     let ret = m >>= \(h,_) -> return (h,ll) in
     return (VimData ret a b c, ())
+
+clearCommands :: VimData -> VimData
+clearCommands (VimData lh cv _ ll) = VimData lh cv BS.empty ll
+
+runTryCache :: String -> VimM Bool -> VimM Bool
+runTryCache str (VimM fn) = do
+  tmpdir <- liftIO tempFolder
+  let filename = tmpdir </> (printf "radiation_%s_x.vim" $ md5s $ Str $ "$CACHE$" ++ str) -- little salting 
+
+  fileExists <- liftIO (doesFileExist filename)
+  if fileExists then do
+    log Info $ BSC.pack $ "Using cache file: " ++ filename
+    VimM $ \vm vd -> do
+      cached <- BSL.toStrict <$> (decompress <$> (BSL.readFile filename))
+      return (vd {commandBuffer =
+                   commandBuffer vd `mappend` cached}, True)
+    else do
+      log Info $ BSC.pack $ "Not cached yet: " ++ filename
+      VimM $ \vm vd -> do
+        (vd', b) <- fn vm (clearCommands vd)
+        when b $ BSL.writeFile filename (compress $ BSL.fromStrict $ commandBuffer vd')
+        return (vd {commandBuffer = commandBuffer vd `mappend` commandBuffer vd'}, b)
+
 
 {- Run a Vim monad. Must specify the
  - type of connection to use to the vim
@@ -301,3 +336,21 @@ withFilePortable path mode fn = do
     tmpDir <- liftIO tempFolder
     withFile (tmpDir </> path) mode fn
 
+parVim :: [VimM a] -> VimM [a]
+parVim actions = VimM $ \vm vd -> do
+  lst <- forM actions $ \(VimM fn) -> do
+          ioref <- newIORef Nothing
+
+          return (do x <- fn vm vd
+                     writeIORef ioref (Just x), ioref)
+
+  let toRun = map fst lst
+  let toRead = map snd lst
+
+  run toRun
+  values <- mapM readIORef toRead
+
+  let vimDatas = mapMaybe (fst<$>) values
+  let rets = mapMaybe (snd<$>) values
+
+  return (foldl' unionVD vd vimDatas, rets)

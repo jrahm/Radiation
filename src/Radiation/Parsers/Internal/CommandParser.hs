@@ -9,9 +9,9 @@ import Control.Monad.IO.Class
 import Data.ByteString.Char8 (pack)
 import My.Utils ((+>+))
 
-runCommand :: [String] -> VimM (Handle, Handle)
+runCommand :: [String] -> VimM (Handle, Handle, ProcessHandle)
 runCommand args =
     let command = unwords args in do
         vlog Info $ "[RunningCommand]: " +>+ pack command
-        (_, stout, sterr, _) <- liftIO $ runInteractiveCommand command
-        return (stout,sterr)
+        (_, stout, sterr, ph) <- liftIO $ runInteractiveCommand command
+        return (stout,sterr,ph)

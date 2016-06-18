@@ -6,7 +6,7 @@
 module Radiation.Parsers (
     runParser, highlight, Parser(..),
     syn, Keyword(..), SynArg(..),
-    Link(..), HiArg(..), hiLink) where
+    Link(..), HiArg(..), hiLink, synKeywordS) where
 
 import Vim (Variable, VimM(..), vlog, post, LogLevel(..), openLogFilePortable)
 
@@ -76,6 +76,9 @@ syn = next
 
 hiLink :: ByteString -> ByteString -> VimM()
 hiLink = hi Link
+
+synKeywordS :: String -> [String] -> VimM () 
+synKeywordS group vals = syn Keyword (BSC.pack group) (map BSC.pack vals)
 
 highlight :: (Convertible a ByteString, Convertible b ByteString) => a -> [b] -> VimM ()
 highlight high word' =
