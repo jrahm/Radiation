@@ -28,7 +28,7 @@ endfunction
 " many different events happen. This should only really be used
 " if radiation is set to not block. This should not be a problem
 " with the new architecture of the code.
-function radiation#RadiationAuto()
+function! radiation#RadiationAuto()
 
 augroup Radiation
     " clear everything out
@@ -49,7 +49,7 @@ endfunction
 " The opposite of the above. Radiation will still try to source
 " the file if it can, but no new instances of radiation will be
 " spawned unless the user uses the Radiation command.
-function radiation#RadiationNoAuto()
+function! radiation#RadiationNoAuto()
 
 augroup Radiation
     autocmd!

@@ -51,9 +51,9 @@ augroup Radiation
     autocmd BufEnter    * call radiation#SourceAndRun()
     autocmd BufWrite    * call radiation#SourceAndRun()
     autocmd BufLeave    * call radiation#Kill()
-    autocmd CursorHold  * call radiation#SourceAndRun()
-    autocmd InsertLeave * call radiation#SourceAndRun()
-    autocmd InsertEnter * call radiation#SourceAndRun()
+    autocmd CursorHold  * call radiation#TrySource()
+    autocmd InsertLeave * call radiation#TrySource()
+    autocmd InsertEnter * call radiation#TrySource()
 
 augroup END
 

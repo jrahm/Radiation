@@ -98,7 +98,7 @@ def radiate(filetype):
 
       new_args = vars_to_args(needed_vars)
 
-      argv = [radiation_binary, filename, filetype, "+RTS", "-N4"] + new_args
+      argv = [radiation_binary, filename, filetype] + new_args + ["+RTS", "-N4"]
       debug("argv: %s" % argv)
       g_running_process = runprocess(argv, False)
       debug("detach process")

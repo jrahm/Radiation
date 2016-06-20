@@ -22,7 +22,7 @@ import Radiation.Parsers.Internal.CommandParser
 import Radiation.Parsers.Internal.InternalIO
 import Radiation.Parsers.Languages.JavaLang
 
-import System.Directory (findFile, getModificationTime)
+import System.Directory (findFile, getModificationTime, getDirectoryContents)
 import System.Exit
 import System.Process hiding (runCommand)
 
@@ -36,13 +36,11 @@ import Data.Time
 import Data.Time.Format
 
 import System.Locale
+import System.FilePath ((</>))
 
-
-parseFromSource :: [String] -> [String] -> VimM Bool
-parseFromSource classname classpaths =
-  let sourcefile = (intercalate "/" classname) ++ ".java"
-  in do
-	    -- source <- liftIO (findFile classpaths sourcefile)
+parseFromSourceFile :: String -> [String] -> VimM Bool
+parseFromSourceFile sourcefile classpaths = do
+      -- source <- liftIO (findFile classpaths sourcefile)
       source <- liftIO (findFile classpaths sourcefile)
       cacheKey <-
         case source of 
@@ -51,10 +49,15 @@ parseFromSource classname classpaths =
                 modTime <- liftIO $ getModificationTime s
                 return (formatTime defaultTimeLocale "%F%T" modTime)
 
-      log Info (BSC.pack $ "Found file: " ++ show source)
+      log Info (BSC.pack $ "Found file: " ++ show source ++ "(For sourcefile) " ++ sourcefile)
       runTryCache cacheKey $ do
         forM_ source $ parse False
         return (isJust source)
+
+parseFromSource :: [String] -> [String] -> VimM Bool
+parseFromSource classname classpaths =
+  let sourcefile = (intercalate "/" classname) ++ ".java"
+  in parseFromSourceFile sourcefile classpaths
 
 highlightLang :: VimM ()
 highlightLang = do
@@ -94,8 +97,9 @@ highlightFromImport (ImportDecl _ (Name name) _) =
                let contents = lines contents'
 
                case contents of
-                 (_:rest) ->
-                   let everything = unlines (map sanitize rest)
+                 (head:rest) ->
+                   let toParse = if "Compiled" `isPrefixOf` head then rest else contents
+                       everything = unlines (map sanitize toParse)
                        result = J.parser compilationUnit everything
                    in do
                      log Info (BSC.pack everything)
@@ -137,7 +141,7 @@ highlightFromImport (ImportDecl _ (Name name) _) =
 
     fixQualified line =
       unwords $ map (last . splitOn "/") $
-                map (last . splitOn ".")
+                map (last . splitOn ".") $
                 (replaceIntf $ mywords line)
 
     sanitize line = fixQualified (deleteParens line)
@@ -152,11 +156,13 @@ walkCompilation runImports (CompilationUnit _ imports typeDecl) = do
 
 
 walkClassDecl (ClassDecl _ (Ident name) _ _ _ body) = do
-  R.synKeywordS "javaType" [name]
+  R.synKeywordS "RadiationJavaClass" (splitOn "$" name)
   walkClassBody body
 
+walkClassDecl _ = return ()
+
 walkInterfaceDecl (InterfaceDecl _ (Ident name) _ _ body) = do
-  R.synKeywordS "javaType" [name]
+  R.synKeywordS "RadiationJavaClass" (splitOn "$" name)
   walkInterfaceBody body
 
 walkInterfaceBody (InterfaceBody decls) =
@@ -169,17 +175,16 @@ walkDecl (MemberDecl x) = walkMemberDecl x
 walkDecl _ = return ()
 
 walkMemberDecl (MethodDecl _ _ _ (Ident name) _ _ _) =
-  R.synKeywordS "Function" [name]
+  R.synKeywordS "RadiationJavaFunction" [name]
 
 walkMemberDecl (MemberClassDecl member) = walkClassDecl member
 walkMemberDecl (MemberInterfaceDecl member) = walkInterfaceDecl member
 walkMemberDecl (FieldDecl modifiers _ vars) = do
   let modifierSet = Set.fromList modifiers
 
-  when (Set.member Public modifierSet &&
-        Set.member Static modifierSet &&
+  when (Set.member Static modifierSet &&
         Set.member Final  modifierSet)
-         (R.synKeywordS "Constant" (map toStr vars))
+         (R.synKeywordS "RadiationJavaConstant" (map toStr vars))
 
 
   where
@@ -200,15 +205,32 @@ parser' :: Bool -> R.Parser
 parser' useImports =
     R.Parser "java"
       (const ["g:radiation_java_classpath"])
-      (parse useImports)
+      (parseAll useImports)
+
+parseAll :: Bool -> FilePath -> VimM ()
+parseAll useImports fp = do
+        let directory = dirname fp
+
+        logs Info $ "In directory " ++ directory
+        contents <- liftIO $ getDirectoryContents directory
+        let contents' = filter (not . (fp`isSuffixOf`)) contents
+        let javaFiles = map (directory</>) (filter (".java"`isSuffixOf`) contents')
+
+        logs Info $ "Files: " ++ show javaFiles
+        mapM_ (flip parseFromSourceFile ["."]) javaFiles
+        parse useImports fp
+
+        where
+          
+          dirname name = let ret = reverse (dropWhile ((/='/') `and_` (/='\\')) (reverse name)) in
+                                            if null ret then "." else ret
+          and_ f1 f2 a = f1 a && f2 a
+
 
 parse :: Bool -> FilePath -> VimM ()
 parse useImports filename = do
-      
         source <- liftIO $ readFile filename
         let result = J.parser compilationUnit source
         case result of
           Left e -> log Error (BSC.pack $ show e)
           Right ast -> walkCompilation useImports ast
-  
-                  
